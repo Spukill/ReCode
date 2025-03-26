@@ -71,13 +71,13 @@ ReCode is a web platform designed to help programmers, students, and developers 
 
 ### User Stories
 
-1. [Code Snippet Storage and Review](https://github.com/your-username/your-repo/issues/6)  
-2. [Noting Section with Image Support](https://github.com/your-username/your-repo/issues/5)  
-3. [Quick Reference Guide](https://github.com/your-username/your-repo/issues/4)  
-4. [Side-by-Side Language Comparison](https://github.com/your-username/your-repo/issues/3)  
-5. [Community Section for Questions and Answers](https://github.com/your-username/your-repo/issues/2)  
-6. [Community Tab for Sharing Code Snippets](https://github.com/your-username/your-repo/issues/1)  
-7. [Recommendation Notes for Language Transition](https://github.com/your-username/your-repo/issues/7)  
+1. [Code Snippet Storage and Review](https://github.com/LEIC-ES-2024-25/2LEIC11T3/issues/6)  
+2. [Noting Section with Image Support](https://github.com/LEIC-ES-2024-25/2LEIC11T3/issues/5)  
+3. [Quick Reference Guide](https://github.com/LEIC-ES-2024-25/2LEIC11T3/issues/4)  
+4. [Side-by-Side Language Comparison](https://github.com/LEIC-ES-2024-25/2LEIC11T3/issues/3)  
+5. [Community Section for Questions and Answers](https://github.com/LEIC-ES-2024-25/2LEIC11T3/issues/2)  
+6. [Community Tab for Sharing Code Snippets](https://github.com/LEIC-ES-2024-25/2LEIC11T3/issues/1)  
+7. [Recommendation Notes for Language Transition](https://github.com/LEIC-ES-2024-25/2LEIC11T3/issues/7)  
 
 ### Domain model
 
