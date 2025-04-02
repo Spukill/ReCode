@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'bottom_navigation.dart';
+import 'login_screen.dart';
 
 void main() {
   runApp(ReCodeApp());
@@ -15,7 +16,11 @@ class ReCodeApp extends StatelessWidget {
         primarySwatch: Colors.blue,
         scaffoldBackgroundColor: Colors.white,
         textTheme: TextTheme(
-          bodyLarge: TextStyle(fontSize: 20, fontWeight: FontWeight.bold, color: Colors.black),
+          bodyLarge: TextStyle(
+            fontSize: 20,
+            fontWeight: FontWeight.bold,
+            color: Colors.black,
+          ),
           bodyMedium: TextStyle(fontSize: 16, color: Colors.black54),
         ),
         bottomNavigationBarTheme: BottomNavigationBarThemeData(
@@ -23,7 +28,7 @@ class ReCodeApp extends StatelessWidget {
           unselectedItemColor: Colors.grey,
         ),
       ),
-      home: BottomNavigation(),
+      home: LoginScreen(),
     );
   }
 }
