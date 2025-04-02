@@ -146,9 +146,13 @@ Focuses on the resources related to the programming languages supported by the a
 
 
 ### Sprint 0
+Screenshot of our sprint 0 backlog:
+<img src="/images/BacklogSprint0.png">
 
 
 ### Sprint 1
+Screenshot of our backlog at the beggining of sprint 1:
+<img src="/images/BacklogSprint1Beggining.png">
 
 
 ### Sprint 2
