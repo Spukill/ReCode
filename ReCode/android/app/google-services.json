@@ -1,0 +1,46 @@
+{
+  "project_info": {
+    "project_number": "419057044895",
+    "project_id": "recode-cfdf8",
+    "storage_bucket": "recode-cfdf8.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:419057044895:android:c6197a2d0ac2eba65081aa",
+        "android_client_info": {
+          "package_name": "com.example.recode"
+        }
+      },
+      "oauth_client": [
+        {
+          "client_id": "419057044895-td2darsqttfjlf6lb9vp0128m7m6e9ek.apps.googleusercontent.com",
+          "client_type": 3
+        }
+      ],
+      "api_key": [
+        {
+          "current_key": "AIzaSyDiDd3Ha7vwAk9ILxWNN8sgDib_XBM1JNw"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": [
+            {
+              "client_id": "419057044895-td2darsqttfjlf6lb9vp0128m7m6e9ek.apps.googleusercontent.com",
+              "client_type": 3
+            },
+            {
+              "client_id": "419057044895-oitskjp89a2kuuv9m5juup6ohlphnqee.apps.googleusercontent.com",
+              "client_type": 2,
+              "ios_info": {
+                "bundle_id": "com.example.recode"
+              }
+            }
+          ]
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}
