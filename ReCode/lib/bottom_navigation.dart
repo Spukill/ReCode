@@ -1,4 +1,6 @@
 import 'package:flutter/material.dart';
+import 'package:firebase_auth/firebase_auth.dart';
+import 'login_screen.dart';
 import 'code_storing.dart';
 
 class BottomNavigation extends StatefulWidget {
@@ -15,6 +17,21 @@ class _BottomNavigationState extends State<BottomNavigation> {
     PlaceholderScreen(title: 'Questions and Answers'),
   ];
 
+  Future<void> _logout(BuildContext context) async {
+    try {
+      await FirebaseAuth.instance.signOut();
+      Navigator.pushReplacement(
+        context,
+        MaterialPageRoute(builder: (context) => LoginScreen()),
+      );
+    } catch (e) {
+      print("Logout failed: $e");
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(SnackBar(content: Text("Logout failed: $e")));
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -23,6 +40,13 @@ class _BottomNavigationState extends State<BottomNavigation> {
         centerTitle: true,
         backgroundColor: Colors.blue,
         automaticallyImplyLeading: false, // Rimuove la freccia indietro
+        actions: [
+          IconButton(
+            icon: Icon(Icons.logout),
+            onPressed: () => _logout(context),
+            tooltip: 'Logout',
+          ),
+        ],
       ),
       body: _screens[_currentIndex],
       bottomNavigationBar: BottomNavigationBar(

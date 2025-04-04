@@ -13,6 +13,24 @@ class _LoginScreenState extends State<LoginScreen> {
   final TextEditingController _emailController = TextEditingController();
   final TextEditingController _passwordController = TextEditingController();
 
+  @override
+  void initState() {
+    super.initState();
+    _checkUserLoggedIn();
+  }
+
+  Future<void> _checkUserLoggedIn() async {
+    User? user = _auth.currentUser;
+    if (user != null) {
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        Navigator.pushReplacement(
+          context,
+          MaterialPageRoute(builder: (context) => BottomNavigation()),
+        );
+      });
+    }
+  }
+
   Future<void> _loginWithEmailAndPassword(BuildContext context) async {
     try {
       UserCredential userCredential = await _auth.signInWithEmailAndPassword(
@@ -20,7 +38,7 @@ class _LoginScreenState extends State<LoginScreen> {
         password: _passwordController.text.trim(),
       );
       print("User ID: ${userCredential.user?.uid}");
-      Navigator.push(
+      Navigator.pushReplacement(
         context,
         MaterialPageRoute(builder: (context) => BottomNavigation()),
       );
@@ -57,6 +75,29 @@ class _LoginScreenState extends State<LoginScreen> {
       ScaffoldMessenger.of(
         context,
       ).showSnackBar(SnackBar(content: Text("Google login failed: $e")));
+    }
+  }
+
+  Future<void> _signUpWithEmailAndPassword(BuildContext context) async {
+    try {
+      UserCredential userCredential = await _auth
+          .createUserWithEmailAndPassword(
+            email: _emailController.text.trim(),
+            password: _passwordController.text.trim(),
+          );
+      print("User registered: ${userCredential.user?.uid}");
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(SnackBar(content: Text("Registration successful!")));
+      Navigator.pushReplacement(
+        context,
+        MaterialPageRoute(builder: (context) => BottomNavigation()),
+      );
+    } catch (e) {
+      print("Sign-up failed: $e");
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(SnackBar(content: Text("Sign-up failed: $e")));
     }
   }
 
@@ -103,17 +144,7 @@ class _LoginScreenState extends State<LoginScreen> {
               ),
               SizedBox(height: 10),
               ElevatedButton(
-                onPressed: () => _loginWithGoogle(context),
-                child: Text("Log-in with Google"),
-                style: ElevatedButton.styleFrom(
-                  minimumSize: Size(double.infinity, 50),
-                ),
-              ),
-              SizedBox(height: 10),
-              ElevatedButton(
-                onPressed: () {
-                  // Aggiungi qui la funzionalità di registrazione
-                },
+                onPressed: () => _signUpWithEmailAndPassword(context),
                 child: Text("Sign-in"),
                 style: ElevatedButton.styleFrom(
                   minimumSize: Size(double.infinity, 50),
