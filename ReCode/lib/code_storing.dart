@@ -1,189 +1,172 @@
 import 'package:flutter/material.dart';
+import 'dart:io';
+import 'package:image_picker/image_picker.dart';
 
-class CodeStoringTab extends StatefulWidget {
+class CodeStoringPage extends StatefulWidget {
   @override
-  _CodeStoringTabState createState() => _CodeStoringTabState();
+  _CodeStoringPageState createState() => _CodeStoringPageState();
 }
 
-class _CodeStoringTabState extends State<CodeStoringTab> {
-  List<Map<String, String>> codeSnippets = [];
+class _CodeStoringPageState extends State<CodeStoringPage> {
+  final TextEditingController _titleController = TextEditingController();
+  final TextEditingController _codeController = TextEditingController();
+  List<Map<String, dynamic>> _notes = [];
+  File? _image;
+  final ImagePicker _picker = ImagePicker();
+  bool _isAddingNote = false;
+  int? _editingIndex;
 
-  void _addOrEditSnippet({int? index}) {
-    TextEditingController titleController = TextEditingController();
-    TextEditingController codeController = TextEditingController();
-
-    if (index != null) {
-      titleController.text = codeSnippets[index]["title"] ?? "";
-      codeController.text = codeSnippets[index]["code"] ?? "";
+  Future<void> _pickImage() async {
+    final XFile? pickedFile = await _picker.pickImage(source: ImageSource.gallery);
+    if (pickedFile != null) {
+      setState(() {
+        _image = File(pickedFile.path);
+      });
     }
-
-    showDialog(
-      context: context,
-      builder: (context) {
-        return AlertDialog(
-          title: Text(index == null ? 'Add Note' : 'Edit Note'),
-          content: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              TextField(
-                controller: titleController,
-                decoration: InputDecoration(hintText: "Enter note title"),
-              ),
-              SizedBox(height: 10),
-              TextField(
-                controller: codeController,
-                maxLines: 5,
-                decoration: InputDecoration(hintText: "Enter note details..."),
-              ),
-            ],
-          ),
-          actions: [
-            TextButton(
-              onPressed: () => Navigator.pop(context),
-              child: Text('Cancel'),
-            ),
-            TextButton(
-              onPressed: () {
-                if (titleController.text.isNotEmpty && codeController.text.isNotEmpty) {
-                  setState(() {
-                    if (index == null) {
-                      codeSnippets.add({
-                        "title": titleController.text,
-                        "code": codeController.text,
-                      });
-                    } else {
-                      codeSnippets[index] = {
-                        "title": titleController.text,
-                        "code": codeController.text,
-                      };
-                    }
-                  });
-                  Navigator.pop(context);
-                }
-              },
-              child: Text(index == null ? 'Save' : 'Update'),
-            ),
-          ],
-        );
-      },
-    );
   }
 
-  void _deleteSnippet(int index) {
-    showDialog(
-      context: context,
-      builder: (context) {
-        return AlertDialog(
-          title: Text("Delete Note"),
-          content: Text("Are you sure you want to delete this note?"),
-          actions: [
-            TextButton(
-              onPressed: () => Navigator.pop(context),
-              child: Text('Cancel'),
-            ),
-            TextButton(
-              onPressed: () {
-                setState(() {
-                  codeSnippets.removeAt(index);
-                });
-                Navigator.pop(context);
-              },
-              child: Text('Delete', style: TextStyle(color: Colors.red)),
-            ),
-          ],
-        );
-      },
-    );
+  void _saveNote() {
+    String title = _titleController.text;
+    String codeSnippet = _codeController.text;
+    if (title.isNotEmpty || codeSnippet.isNotEmpty || _image != null) {
+      setState(() {
+        if (_editingIndex != null) {
+          _notes[_editingIndex!] = {'title': title, 'code': codeSnippet, 'image': _image};
+          _editingIndex = null;
+        } else {
+          _notes.add({'title': title, 'code': codeSnippet, 'image': _image});
+        }
+        _titleController.clear();
+        _codeController.clear();
+        _image = null;
+        _isAddingNote = false;
+      });
+    }
   }
 
-  Widget _buildNoteCard(int index) {
-    return GestureDetector(
-      onTap: () => _addOrEditSnippet(index: index),
-      child: Card(
-        color: Colors.blue,
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-        child: Padding(
-          padding: const EdgeInsets.all(12),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Text(
-                codeSnippets[index]["title"] ?? "Untitled",
-                style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: Colors.white),
-              ),
-              SizedBox(height: 8),
-              Text(
-                codeSnippets[index]["code"] ?? "",
-                maxLines: 2,
-                overflow: TextOverflow.ellipsis,
-                style: TextStyle(color: Colors.white70),
-              ),
-              Align(
-                alignment: Alignment.bottomRight,
-                child: IconButton(
-                  icon: Icon(Icons.more_horiz, color: Colors.white),
-                  onPressed: () => _deleteSnippet(index),
-                ),
-              ),
-            ],
-          ),
-        ),
-      ),
-    );
+  void _editNote(int index) {
+    setState(() {
+      _titleController.text = _notes[index]['title'];
+      _codeController.text = _notes[index]['code'];
+      _image = _notes[index]['image'];
+      _isAddingNote = true;
+      _editingIndex = index;
+    });
+  }
+
+  void _deleteNote(int index) {
+    setState(() {
+      if (_editingIndex == index) {
+        _titleController.clear();
+        _codeController.clear();
+        _image = null;
+        _isAddingNote = false;
+        _editingIndex = null;
+      }
+      _notes.removeAt(index);
+    });
   }
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(
-        backgroundColor: Colors.blue,
-        title: Row(
-          children: [
-            Icon(Icons.search, color: Colors.white),
-            SizedBox(width: 10),
-            Expanded(
-              child: TextField(
-                decoration: InputDecoration(
-                  hintText: "Search notes",
-                  hintStyle: TextStyle(color: Colors.white70),
-                  border: InputBorder.none,
-                ),
-                style: TextStyle(color: Colors.white),
+      appBar: AppBar(title: Text('Code Notes')),
+      body: Column(
+        children: [
+          Expanded(
+            child: ListView.builder(
+              itemCount: _notes.length,
+              itemBuilder: (context, index) {
+                return Card(
+                  margin: EdgeInsets.all(8.0),
+                  child: ListTile(
+                    title: Text(_notes[index]['title'], style: TextStyle(fontWeight: FontWeight.bold)),
+                    subtitle: Text(_notes[index]['code'], maxLines: 2, overflow: TextOverflow.ellipsis),
+                    leading: _notes[index]['image'] != null
+                        ? Image.file(
+                      _notes[index]['image'],
+                      width: 50,
+                      height: 50,
+                      fit: BoxFit.cover,
+                    )
+                        : null,
+                    trailing: Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        IconButton(
+                          icon: Icon(Icons.edit, color: Colors.blue),
+                          onPressed: () => _editNote(index),
+                        ),
+                        IconButton(
+                          icon: Icon(Icons.delete, color: Colors.red),
+                          onPressed: () => _deleteNote(index),
+                        ),
+                      ],
+                    ),
+                  ),
+                );
+              },
+            ),
+          ),
+          if (!_isAddingNote)
+            Padding(
+              padding: const EdgeInsets.all(12),
+              child: ElevatedButton(
+                onPressed: () {
+                  setState(() {
+                    _isAddingNote = true;
+                  });
+                },
+                child: Text("Add Note"),
               ),
             ),
-          ],
-        ),
-      ),
-      body: Padding(
-        padding: EdgeInsets.all(12),
-        child: Column(
-          children: [
-            Text(
-              "C++ notes",
-              style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
-            ),
-            SizedBox(height: 10),
-            Expanded(
-              child: codeSnippets.isEmpty
-                  ? Center(child: Text('No notes yet.'))
-                  : GridView.builder(
-                      gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
-                        crossAxisCount: 2, //Two columns per row
-                        crossAxisSpacing: 10,
-                        mainAxisSpacing: 10,
-                      ),
-                      itemCount: codeSnippets.length,
-                      itemBuilder: (context, index) => _buildNoteCard(index),
+          if (_isAddingNote)
+            Padding(
+              padding: const EdgeInsets.all(8.0),
+              child: Column(
+                children: [
+                  TextField(
+                    controller: _titleController,
+                    decoration: InputDecoration(labelText: 'Enter note title'),
+                  ),
+                  SizedBox(height: 10),
+                  TextField(
+                    controller: _codeController,
+                    decoration: InputDecoration(labelText: 'Enter your code snippet'),
+                    maxLines: 5,
+                  ),
+                  SizedBox(height: 10),
+                  _image != null
+                      ? Container(
+                    height: 150,
+                    width: double.infinity,
+                    decoration: BoxDecoration(
+                      border: Border.all(color: Colors.grey),
                     ),
+                    child: Image.file(
+                      _image!,
+                      fit: BoxFit.contain,
+                    ),
+                  )
+                      : Text("No image selected"),
+                  SizedBox(height: 10),
+                  Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                    children: [
+                      ElevatedButton(
+                        onPressed: _pickImage,
+                        child: Text("Pick Image"),
+                      ),
+                      ElevatedButton(
+                        onPressed: _saveNote,
+                        child: Text(_editingIndex != null ? "Update Note" : "Save Note"),
+                      ),
+                    ],
+                  ),
+                ],
+              ),
             ),
-          ],
-        ),
-      ),
-      floatingActionButton: FloatingActionButton.extended(
-        onPressed: _addOrEditSnippet,
-        icon: Icon(Icons.add),
-        label: Text("Add Note"),
-        backgroundColor: Colors.blue,
+        ],
       ),
     );
   }

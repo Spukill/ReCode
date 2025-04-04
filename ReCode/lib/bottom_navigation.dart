@@ -10,7 +10,7 @@ class _BottomNavigationState extends State<BottomNavigation> {
   int _currentIndex = 0;
 
   final List<Widget> _screens = [
-    CodeStoringTab(),
+    CodeStoringPage(),
     PlaceholderScreen(title: 'Community tab'),
     PlaceholderScreen(title: 'Questions and Answers'),
   ];
