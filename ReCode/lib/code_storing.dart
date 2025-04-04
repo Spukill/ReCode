@@ -167,14 +167,14 @@ class _CodeStoringTabState extends State<CodeStoringTab> {
               child: codeSnippets.isEmpty
                   ? Center(child: Text('No notes yet.'))
                   : GridView.builder(
-                gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
-                  crossAxisCount: 2, //Two columns per row
-                  crossAxisSpacing: 10,
-                  mainAxisSpacing: 10,
-                ),
-                itemCount: codeSnippets.length,
-                itemBuilder: (context, index) => _buildNoteCard(index),
-              ),
+                      gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
+                        crossAxisCount: 2, //Two columns per row
+                        crossAxisSpacing: 10,
+                        mainAxisSpacing: 10,
+                      ),
+                      itemCount: codeSnippets.length,
+                      itemBuilder: (context, index) => _buildNoteCard(index),
+                    ),
             ),
           ],
         ),

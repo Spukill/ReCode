@@ -22,6 +22,7 @@ class _BottomNavigationState extends State<BottomNavigation> {
         title: Text('ReCode', style: TextStyle(fontWeight: FontWeight.bold)),
         centerTitle: true,
         backgroundColor: Colors.blue,
+        automaticallyImplyLeading: false, // Rimuove la freccia indietro
       ),
       body: _screens[_currentIndex],
       bottomNavigationBar: BottomNavigationBar(
