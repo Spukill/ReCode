@@ -141,7 +141,7 @@ class _CodeStoringPageState extends State<CodeStoringPage> {
                     height: 150,
                     width: double.infinity,
                     decoration: BoxDecoration(
-                      border: Border.all(color: Colors.grey),
+                      border: Border.all(color: const Color.fromARGB(255, 255, 16, 16)),
                     ),
                     child: Image.file(
                       _image!,

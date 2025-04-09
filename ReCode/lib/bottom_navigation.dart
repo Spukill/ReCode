@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_svg/flutter_svg.dart';
 import 'code_storing.dart';
 
 class BottomNavigation extends StatefulWidget {
@@ -19,10 +20,51 @@ class _BottomNavigationState extends State<BottomNavigation> {
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        title: Text('ReCode', style: TextStyle(fontWeight: FontWeight.bold)),
-        centerTitle: true,
         backgroundColor: Colors.blue,
-        automaticallyImplyLeading: false, // Rimuove la freccia indietro
+        automaticallyImplyLeading: false,
+        titleSpacing: 20,
+        title: Row(
+          mainAxisAlignment: MainAxisAlignment.spaceBetween, // Pushes groups to extremes
+          children: [
+            // SVG logo (PLACEHOLDER)
+            Row(
+              children: [
+                SvgPicture.asset (
+                  'assets/icons/logo.svg',
+                  width: 30,
+                  height: 25,
+                ),
+                
+                SizedBox(width: 10),
+                
+                Text(
+                  'ReCode',
+                  style: TextStyle(
+                    fontSize: 20,
+                    fontWeight: FontWeight.bold,
+                    color: Colors.white,
+                  ),
+                ),
+              ],
+            ),
+
+            IconButton(
+              icon: Icon(Icons.menu, color: Colors.white),
+              onPressed: () {}, // Empty for now
+
+              // Could be changed later
+              splashColor: Colors.transparent,  // No splash effect
+              highlightColor: Colors.transparent,  // No highlight
+              hoverColor: Colors.transparent,  // No hover
+              // ---
+
+              padding: EdgeInsets.zero,
+              iconSize: 30,
+              constraints: BoxConstraints(),
+            ),
+          ],
+        ),
+        elevation: 4,
       ),
       body: _screens[_currentIndex],
       bottomNavigationBar: BottomNavigationBar(

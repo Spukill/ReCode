@@ -1,26 +1,71 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_svg/flutter_svg.dart';
 import 'bottom_navigation.dart';
 
 class LoginScreen extends StatelessWidget {
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(title: Text("ReCode")),
+      appBar: AppBar(
+        backgroundColor: Colors.blue,
+        automaticallyImplyLeading: false,
+        titleSpacing: 20,
+        title: Row(
+          mainAxisAlignment: MainAxisAlignment.center, // Pushes groups to extremes
+          children: [
+            // SVG logo (PLACEHOLDER)
+            Row(
+              children: [
+                SvgPicture.asset (
+                  'assets/icons/logo.svg',
+                  width: 30,
+                  height: 25,
+                ),
+                
+                SizedBox(width: 10),
+                
+                Text(
+                  'ReCode',
+                  style: TextStyle(
+                    fontSize: 20,
+                    fontWeight: FontWeight.bold,
+                    color: Colors.white,
+                  ),
+                ),
+              ],
+            ),
+          ],
+        ),
+        elevation: 4,
+      ),
       body: Column(
-        mainAxisAlignment: MainAxisAlignment.center,
+        mainAxisAlignment: MainAxisAlignment.center, 
+        
         children: [
-          Icon(Icons.lock_outline, size: 100, color: Colors.blue),
-          SizedBox(height: 20),
-          Text(
-            "Welcome to ReCode",
-            style: TextStyle(fontSize: 24, fontWeight: FontWeight.bold),
-          ),
-          SizedBox(height: 40),
-          Spacer(),
+          
+          Spacer(flex: 1),
+
+          Column(
+            children: [
+              Icon(Icons.lock_open, size: 75, color: Colors.blue),
+              Text(
+                "Welcome to ReCode", 
+                style: TextStyle(
+                  fontSize: 24, 
+                  fontWeight: FontWeight.bold,
+                ),
+              ),
+            ],
+          ),       
+          
+          Spacer(flex: 1),
+
           Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 20.0),
+            padding: EdgeInsets.all(20), // 20px space on ALL sides
             child: Column(
               children: [
+                // Button 1
                 ElevatedButton(
                   onPressed: () {
                     Navigator.push(
@@ -36,6 +81,7 @@ class LoginScreen extends StatelessWidget {
                   ),
                 ),
                 SizedBox(height: 10),
+                // Button 2
                 ElevatedButton(
                   onPressed: () {
                     // Add Sign-in functionality here
@@ -48,9 +94,9 @@ class LoginScreen extends StatelessWidget {
               ],
             ),
           ),
-          SizedBox(height: 20),
-        ],
-      ),
-    );
+          SizedBox(height: 20)
+          ],
+        ),
+      );
   }
 }
