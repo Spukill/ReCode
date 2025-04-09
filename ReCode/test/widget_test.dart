@@ -8,7 +8,8 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 
-import 'package:recode/main.dart';
+// Ensure the correct import path for MyApp
+import 'package:recode/main.dart'; // Ensure this path points to the file where MyApp is defined
 
 void main() {
   testWidgets('Counter increments smoke test', (WidgetTester tester) async {
