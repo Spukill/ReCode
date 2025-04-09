@@ -16,11 +16,15 @@ import 'package:firebase_auth/firebase_auth.dart';
 }
 
 class ReCodeApp extends StatelessWidget {
+  const ReCodeApp({super.key});
+
   @override
   Widget build(BuildContext context) {
     return MaterialApp(
       title: 'ReCode',
+
       debugShowCheckedModeBanner: false,
+
       theme: ThemeData(
         primarySwatch: Colors.blue,
         scaffoldBackgroundColor: Colors.white,
@@ -36,6 +40,15 @@ class ReCodeApp extends StatelessWidget {
           selectedItemColor: Colors.blue,
           unselectedItemColor: Colors.grey,
         ),
+
+        colorScheme: ColorScheme.light(
+          primary: Colors.blue, // Primary color for apps
+          secondary: Colors.blueAccent, // Secondary color
+          surface: Colors.white, // Background color
+          onPrimary: Colors.white, // Text color on primary
+          error: Colors.red, // Explicit error color
+        ),
+        
       ),
       home: LoginScreen(),
     );
