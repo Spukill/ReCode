@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
-import 'package:flutter_svg/flutter_svg.dart';
+import 'package:firebase_auth/firebase_auth.dart';
+import 'login_screen.dart';
 import 'code_storing.dart';
 
 class BottomNavigation extends StatefulWidget {
@@ -15,6 +16,21 @@ class _BottomNavigationState extends State<BottomNavigation> {
     PlaceholderScreen(title: 'Community tab'),
     PlaceholderScreen(title: 'Questions and Answers'),
   ];
+
+  Future<void> _logout(BuildContext context) async {
+    try {
+      await FirebaseAuth.instance.signOut();
+      Navigator.pushReplacement(
+        context,
+        MaterialPageRoute(builder: (context) => LoginScreen()),
+      );
+    } catch (e) {
+      print("Logout failed: $e");
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(SnackBar(content: Text("Logout failed: $e")));
+    }
+  }
 
   @override
   Widget build(BuildContext context) {
