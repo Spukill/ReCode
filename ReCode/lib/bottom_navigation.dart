@@ -52,8 +52,14 @@ class _BottomNavigationState extends State<BottomNavigation> {
             ),
 
             IconButton(
-              icon: Icon(Icons.menu, color: Colors.white),
-              onPressed: () {}, // Empty for now
+              icon: Icon(Icons.logout, color: Colors.white),
+              onPressed: () async {
+                await FirebaseAuth.instance.signOut(); // Sign out first
+                Navigator.of(context, rootNavigator: true).pushAndRemoveUntil(
+                  MaterialPageRoute(builder: (context) => LoginScreen()),
+                  (route) => false,
+                );
+              }, 
 
               // Could be changed later
               splashColor: Colors.transparent,  // No splash effect

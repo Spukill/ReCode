@@ -5,12 +5,10 @@ import 'package:firebase_core/firebase_core.dart';
 import 'firebase_options.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 
-
-
-  void main() async {
+void main() async {
   WidgetsFlutterBinding.ensureInitialized();
-    await Firebase.initializeApp(
-      options: DefaultFirebaseOptions.currentPlatform,
+  await Firebase.initializeApp(
+    options: DefaultFirebaseOptions.currentPlatform,
   );
   runApp(ReCodeApp());
 }
@@ -22,9 +20,7 @@ class ReCodeApp extends StatelessWidget {
   Widget build(BuildContext context) {
     return MaterialApp(
       title: 'ReCode',
-
       debugShowCheckedModeBanner: false,
-
       theme: ThemeData(
         primarySwatch: Colors.blue,
         scaffoldBackgroundColor: Colors.white,
@@ -40,7 +36,6 @@ class ReCodeApp extends StatelessWidget {
           selectedItemColor: Colors.blue,
           unselectedItemColor: Colors.grey,
         ),
-
         colorScheme: ColorScheme.light(
           primary: Colors.blue, // Primary color for apps
           secondary: Colors.blueAccent, // Secondary color
@@ -48,9 +43,27 @@ class ReCodeApp extends StatelessWidget {
           onPrimary: Colors.white, // Text color on primary
           error: Colors.red, // Explicit error color
         ),
-        
       ),
-      home: LoginScreen(),
+      home: AuthWrapper(),
+    );
+  }
+}
+
+class AuthWrapper extends StatelessWidget {
+  @override
+  Widget build(BuildContext context) {
+    return StreamBuilder<User?>(
+      stream: FirebaseAuth.instance.authStateChanges(), // This listens for authentication state changes
+      builder: (context, snapshot) {
+        if (snapshot.connectionState == ConnectionState.waiting) {
+          return Center(child: CircularProgressIndicator()); // While loading Firebase auth state
+        }
+        if (snapshot.hasData) {
+          return BottomNavigation(); // User is logged in
+        } else {
+          return LoginScreen(); // User is not logged in
+        }
+      },
     );
   }
 }

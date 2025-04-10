@@ -173,9 +173,11 @@ class _LoginScreenState extends State<LoginScreen> {
                   SizedBox(height: 20),
                   ElevatedButton(
                     onPressed: () => _loginWithEmailAndPassword(context),
-                    child: Text("Log-in with Email"),
+                    child: Text("Log-in"),
                     style: ElevatedButton.styleFrom(
                       minimumSize: Size(double.infinity, 50),
+                      backgroundColor: Colors.blue,
+                      foregroundColor: Colors.white,
                     ),
                   ),
                   SizedBox(height: 10),
