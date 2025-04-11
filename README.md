@@ -154,6 +154,11 @@ Screenshot of our sprint 0 backlog:
 Screenshot of our backlog at the beggining of sprint 1:
 <img src="/images/BacklogSprint1Beggining.png">
 
+Sprint Retrospective:
+
+Screenshot of our backlog at the end of sprint 1:
+<img src="/images/BacklogSprint1End.png">
+
 
 ### Sprint 2
 
