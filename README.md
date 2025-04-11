@@ -154,10 +154,12 @@ Screenshot of our sprint 0 backlog:
 Screenshot of our backlog at the beggining of sprint 1:
 <img src="/images/BacklogSprint1Beggining.png">
 
-Sprint Retrospective:
+**Sprint Review:**
 In this 1st sprint we didn't manage to get every single feature accepted, we had most functionalities implemented but due to conflict with firebase we didn't manage to add Image Support with database support. 
 Another mistake we made was not knowing the app should be exclusive to android, which meant we were making implementations for the web as well as for android along with not using an android emulator to test our application during the sprint.
 Yet another error we made was displaying firebase's log messages to users. We now know that at the end of each sprint the main objective is having a completely functional app for users.
+
+**Sprint Retrospective:**
 For the next sprint we will change some things: now we know what we can do with the time period given, we also know the exact requirements we need to meet at the end of the sprint and the workflow to achieve this objective.
 
 Screenshot of our backlog at the end of sprint 1:
