@@ -5,16 +5,8 @@
   </component>
   <component name="ChangeListManager">
     <list default="true" id="acf09d80-826b-4c39-8e1d-bc8d0706498c" name="Changes" comment="">
+      <change beforePath="$PROJECT_DIR$/.idea/ReCode.iml" beforeDir="false" afterPath="$PROJECT_DIR$/.idea/ReCode.iml" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/.idea/workspace.xml" beforeDir="false" afterPath="$PROJECT_DIR$/.idea/workspace.xml" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/ReCode/lib/bottom_navigation.dart" beforeDir="false" afterPath="$PROJECT_DIR$/ReCode/lib/bottom_navigation.dart" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/ReCode/lib/code_storing.dart" beforeDir="false" afterPath="$PROJECT_DIR$/ReCode/lib/code_storing.dart" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/ReCode/linux/flutter/generated_plugin_registrant.cc" beforeDir="false" afterPath="$PROJECT_DIR$/ReCode/linux/flutter/generated_plugin_registrant.cc" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/ReCode/linux/flutter/generated_plugins.cmake" beforeDir="false" afterPath="$PROJECT_DIR$/ReCode/linux/flutter/generated_plugins.cmake" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/ReCode/macos/Flutter/GeneratedPluginRegistrant.swift" beforeDir="false" afterPath="$PROJECT_DIR$/ReCode/macos/Flutter/GeneratedPluginRegistrant.swift" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/ReCode/pubspec.lock" beforeDir="false" afterPath="$PROJECT_DIR$/ReCode/pubspec.lock" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/ReCode/pubspec.yaml" beforeDir="false" afterPath="$PROJECT_DIR$/ReCode/pubspec.yaml" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/ReCode/windows/flutter/generated_plugin_registrant.cc" beforeDir="false" afterPath="$PROJECT_DIR$/ReCode/windows/flutter/generated_plugin_registrant.cc" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/ReCode/windows/flutter/generated_plugins.cmake" beforeDir="false" afterPath="$PROJECT_DIR$/ReCode/windows/flutter/generated_plugins.cmake" afterDir="false" />
     </list>
     <option name="SHOW_DIALOG" value="false" />
     <option name="HIGHLIGHT_CONFLICTS" value="true" />
@@ -49,7 +41,7 @@
     "cf.first.check.clang-format": "false",
     "cidr.known.project.marker": "true",
     "dart.analysis.tool.window.visible": "false",
-    "git-widget-placeholder": "goncalo-calvo",
+    "git-widget-placeholder": "sprint#1",
     "kotlin-language-version-configured": "true",
     "last_opened_file_path": "/home/tiagocunha/snap/flutter/common/flutter/bin/cache/dart-sdk",
     "settings.editor.selected.configurable": "preferences.keymap",
