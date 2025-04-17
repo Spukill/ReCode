@@ -5,24 +5,27 @@ import 'package:font_awesome_flutter/font_awesome_flutter.dart';
 import 'bottom_navigation.dart';
 import 'package:flutter_svg/flutter_svg.dart';
 import 'package:flutter/gestures.dart';
+import 'login_screen.dart';
 
-class LoginScreen extends StatefulWidget {
+class SignUpScreen extends StatefulWidget {
   @override
-  _LoginScreenState createState() => _LoginScreenState();
+  _SignUpScreenState createState() => _SignUpScreenState();
 }
 
-class _LoginScreenState extends State<LoginScreen> with SingleTickerProviderStateMixin {
+class _SignUpScreenState extends State<SignUpScreen> with SingleTickerProviderStateMixin {
   final FirebaseAuth _auth = FirebaseAuth.instance;
+  final TextEditingController _displayNameController = TextEditingController();
   final TextEditingController _emailController = TextEditingController();
   final TextEditingController _passwordController = TextEditingController();
+  final TextEditingController _confirmPasswordController = TextEditingController();
   bool _passwordVisibility = false;
+  bool _confirmPasswordVisibility = false;
   late AnimationController _animationController;
   late Animation<double> _fadeAnimation;
 
   @override
   void initState() {
     super.initState();
-    _checkUserLoggedIn();
     
     _animationController = AnimationController(
       vsync: this,
@@ -46,36 +49,53 @@ class _LoginScreenState extends State<LoginScreen> with SingleTickerProviderStat
     super.dispose();
   }
 
-  Future<void> _checkUserLoggedIn() async {
-    User? user = _auth.currentUser;
-    if (user != null) {
-      WidgetsBinding.instance.addPostFrameCallback((_) {
-        Navigator.pushReplacement(
-          context,
-          MaterialPageRoute(builder: (context) => BottomNavigation()),
-        );
-      });
+  Future<void> _signUpWithEmailAndPassword(BuildContext context) async {
+    if (_passwordController.text != _confirmPasswordController.text) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(
+            "Passwords do not match. Please try again.",
+            style: TextStyle(color: Colors.white),
+          ),
+          backgroundColor: Colors.red[400],
+          behavior: SnackBarBehavior.floating,
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(10),
+          ),
+          margin: EdgeInsets.all(10),
+          duration: Duration(milliseconds: 2000),
+          animation: CurvedAnimation(
+            parent: AnimationController(
+              vsync: ScaffoldMessenger.of(context),
+              duration: Duration(milliseconds: 300),
+            ),
+            curve: Curves.easeOut,
+          ),
+        ),
+      );
+      return;
     }
-  }
 
-  Future<void> _loginWithEmailAndPassword(BuildContext context) async {
     try {
-      UserCredential userCredential = await _auth.signInWithEmailAndPassword(
+      UserCredential userCredential = await _auth.createUserWithEmailAndPassword(
         email: _emailController.text.trim(),
         password: _passwordController.text.trim(),
       );
-      print("User ID: ${userCredential.user?.uid}");
+      
+      await userCredential.user?.updateDisplayName(_displayNameController.text.trim());
+      
+      print("User registered: ${userCredential.user?.uid}");
       Navigator.pushReplacement(
         context,
         MaterialPageRoute(builder: (context) => BottomNavigation()),
       );
     } catch (e) {
-      print("Login failed: $e");
-      String errorMessage = "Invalid email or password. Please try again.";
-      if (e.toString().contains("user-not-found")) {
-        errorMessage = "No account found with this email.";
-      } else if (e.toString().contains("wrong-password")) {
-        errorMessage = "Incorrect password. Please try again.";
+      print("Sign-up failed: $e");
+      String errorMessage = "Failed to create account. Please try again.";
+      if (e.toString().contains("email-already-in-use")) {
+        errorMessage = "This email is already registered. Please sign in instead.";
+      } else if (e.toString().contains("weak-password")) {
+        errorMessage = "Password is too weak. Please use a stronger password.";
       } else if (e.toString().contains("invalid-email")) {
         errorMessage = "Please enter a valid email address.";
       }
@@ -100,41 +120,6 @@ class _LoginScreenState extends State<LoginScreen> with SingleTickerProviderStat
             ),
             curve: Curves.easeOut,
           ),
-        ),
-      );
-    }
-  }
-
-  Future<void> _loginWithGoogle(BuildContext context) async {
-    try {
-      final GoogleSignInAccount? googleUser = await GoogleSignIn().signIn();
-      if (googleUser == null) return;
-
-      final GoogleSignInAuthentication googleAuth = await googleUser.authentication;
-      final AuthCredential credential = GoogleAuthProvider.credential(
-        accessToken: googleAuth.accessToken,
-        idToken: googleAuth.idToken,
-      );
-      UserCredential userCredential = await _auth.signInWithCredential(credential);
-      print("User ID: ${userCredential.user?.uid}");
-      Navigator.pushReplacement(
-        context,
-        MaterialPageRoute(builder: (context) => BottomNavigation()),
-      );
-    } catch (e) {
-      print("Google login failed: $e");
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text(
-            "Failed to sign in with Google. Please try again.",
-            style: TextStyle(color: Colors.white),
-          ),
-          backgroundColor: Colors.red[400],
-          behavior: SnackBarBehavior.floating,
-          shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(10),
-          ),
-          margin: EdgeInsets.all(10),
         ),
       );
     }
@@ -215,7 +200,7 @@ class _LoginScreenState extends State<LoginScreen> with SingleTickerProviderStat
                         crossAxisAlignment: CrossAxisAlignment.center,
                         children: [
                           Text(
-                            'Welcome Back',
+                            'Create Account',
                             textAlign: TextAlign.center,
                             style: TextStyle(
                               fontSize: 28,
@@ -226,7 +211,7 @@ class _LoginScreenState extends State<LoginScreen> with SingleTickerProviderStat
                           Padding(
                             padding: EdgeInsetsDirectional.fromSTEB(0, 12, 0, 24),
                             child: Text(
-                              'Fill out the information below in order to access your account.',
+                              'Fill out the information below to create your account.',
                               textAlign: TextAlign.center,
                               style: TextStyle(
                                 fontSize: 14,
@@ -237,8 +222,31 @@ class _LoginScreenState extends State<LoginScreen> with SingleTickerProviderStat
                           Padding(
                             padding: EdgeInsetsDirectional.fromSTEB(0, 0, 0, 16),
                             child: TextField(
+                              controller: _displayNameController,
+                              decoration: InputDecoration(
+                                labelText: 'Display Name',
+                                labelStyle: TextStyle(
+                                  color: Colors.grey[600],
+                                  fontWeight: FontWeight.normal,
+                                  fontSize: 14,
+                                ),
+                                enabledBorder: OutlineInputBorder(
+                                  borderSide: BorderSide(color: Colors.grey[300]!, width: 2),
+                                  borderRadius: BorderRadius.circular(12),
+                                ),
+                                focusedBorder: OutlineInputBorder(
+                                  borderSide: BorderSide(color: Colors.blue, width: 2),
+                                  borderRadius: BorderRadius.circular(12),
+                                ),
+                                filled: true,
+                                fillColor: Colors.grey[100],
+                              ),
+                            ),
+                          ),
+                          Padding(
+                            padding: EdgeInsetsDirectional.fromSTEB(0, 0, 0, 16),
+                            child: TextField(
                               controller: _emailController,
-                              style: TextStyle(fontSize: 16),
                               decoration: InputDecoration(
                                 labelText: 'Email',
                                 labelStyle: TextStyle(
@@ -263,7 +271,6 @@ class _LoginScreenState extends State<LoginScreen> with SingleTickerProviderStat
                             padding: EdgeInsetsDirectional.fromSTEB(0, 0, 0, 16),
                             child: TextField(
                               controller: _passwordController,
-                              style: TextStyle(fontSize: 16),
                               obscureText: !_passwordVisibility,
                               decoration: InputDecoration(
                                 labelText: 'Password',
@@ -295,8 +302,41 @@ class _LoginScreenState extends State<LoginScreen> with SingleTickerProviderStat
                           ),
                           Padding(
                             padding: EdgeInsetsDirectional.fromSTEB(0, 0, 0, 16),
+                            child: TextField(
+                              controller: _confirmPasswordController,
+                              obscureText: !_confirmPasswordVisibility,
+                              decoration: InputDecoration(
+                                labelText: 'Confirm Password',
+                                labelStyle: TextStyle(
+                                  color: Colors.grey[600],
+                                  fontWeight: FontWeight.normal,
+                                  fontSize: 14,
+                                ),
+                                enabledBorder: OutlineInputBorder(
+                                  borderSide: BorderSide(color: Colors.grey[300]!, width: 2),
+                                  borderRadius: BorderRadius.circular(12),
+                                ),
+                                focusedBorder: OutlineInputBorder(
+                                  borderSide: BorderSide(color: Colors.blue, width: 2),
+                                  borderRadius: BorderRadius.circular(12),
+                                ),
+                                filled: true,
+                                fillColor: Colors.grey[100],
+                                suffixIcon: InkWell(
+                                  onTap: () => setState(() => _confirmPasswordVisibility = !_confirmPasswordVisibility),
+                                  child: Icon(
+                                    _confirmPasswordVisibility ? Icons.visibility_outlined : Icons.visibility_off_outlined,
+                                    color: Colors.grey[600],
+                                    size: 24,
+                                  ),
+                                ),
+                              ),
+                            ),
+                          ),
+                          Padding(
+                            padding: EdgeInsetsDirectional.fromSTEB(0, 0, 0, 16),
                             child: ElevatedButton(
-                              onPressed: () => _loginWithEmailAndPassword(context),
+                              onPressed: () => _signUpWithEmailAndPassword(context),
                               style: ElevatedButton.styleFrom(
                                 backgroundColor: Colors.blue,
                                 minimumSize: Size(double.infinity, 44),
@@ -305,44 +345,11 @@ class _LoginScreenState extends State<LoginScreen> with SingleTickerProviderStat
                                 ),
                               ),
                               child: Text(
-                                'Sign In',
+                                'Sign Up',
                                 style: TextStyle(
                                   color: Colors.white,
                                   fontSize: 16,
                                   fontWeight: FontWeight.bold,
-                                ),
-                              ),
-                            ),
-                          ),
-                          Padding(
-                            padding: EdgeInsetsDirectional.fromSTEB(16, 0, 16, 12),
-                            child: Text(
-                              'Or sign in with',
-                              textAlign: TextAlign.center,
-                              style: TextStyle(
-                                color: Colors.grey[600],
-                                fontSize: 14,
-                              ),
-                            ),
-                          ),
-                          Padding(
-                            padding: EdgeInsetsDirectional.fromSTEB(0, 0, 0, 16),
-                            child: ElevatedButton.icon(
-                              onPressed: () => _loginWithGoogle(context),
-                              icon: FaIcon(FontAwesomeIcons.google, size: 20),
-                              label: Text(
-                                'Continue with Google',
-                                style: TextStyle(
-                                  fontWeight: FontWeight.w600,
-                                ),
-                              ),
-                              style: ElevatedButton.styleFrom(
-                                backgroundColor: Colors.white,
-                                foregroundColor: Colors.black,
-                                minimumSize: Size(double.infinity, 44),
-                                shape: RoundedRectangleBorder(
-                                  borderRadius: BorderRadius.circular(12),
-                                  side: BorderSide(color: Colors.grey[300]!),
                                 ),
                               ),
                             ),
@@ -353,14 +360,14 @@ class _LoginScreenState extends State<LoginScreen> with SingleTickerProviderStat
                               text: TextSpan(
                                 children: [
                                   TextSpan(
-                                    text: 'Don\'t have an account? ',
+                                    text: 'Already have an account? ',
                                     style: TextStyle(
                                       color: Colors.grey[600],
                                       fontSize: 14,
                                     ),
                                   ),
                                   TextSpan(
-                                    text: 'Sign Up',
+                                    text: 'Sign In',
                                     style: TextStyle(
                                       color: Colors.blue,
                                       fontSize: 14,
@@ -368,7 +375,7 @@ class _LoginScreenState extends State<LoginScreen> with SingleTickerProviderStat
                                     ),
                                     recognizer: TapGestureRecognizer()
                                       ..onTap = () {
-                                        Navigator.pushNamed(context, '/signup');
+                                        Navigator.pushNamed(context, '/');
                                       },
                                   ),
                                 ],
@@ -387,4 +394,4 @@ class _LoginScreenState extends State<LoginScreen> with SingleTickerProviderStat
       ),
     );
   }
-}
+} 

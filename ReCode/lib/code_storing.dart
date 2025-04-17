@@ -3,8 +3,6 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'dart:io';
 import 'package:image_picker/image_picker.dart';
-import 'package:flutter/foundation.dart' show kIsWeb;
-import 'dart:typed_data';
 import 'package:firebase_storage/firebase_storage.dart';
 
 class CodeStoringPage extends StatefulWidget {
@@ -17,7 +15,6 @@ class _CodeStoringPageState extends State<CodeStoringPage> {
   final TextEditingController _codeController = TextEditingController();
   List<Map<String, dynamic>> _notes = [];
   File? _image;
-  Uint8List? _imageBytes;
   final ImagePicker _picker = ImagePicker();
   bool _isAddingNote = false;
   int? _editingIndex;
@@ -36,7 +33,6 @@ class _CodeStoringPageState extends State<CodeStoringPage> {
   Future<void> _loadNotes() async {
     User? user = _auth.currentUser;
     if (user != null) {
-      // Get notes from Firestore collection "notes" for the logged-in user
       QuerySnapshot snapshot = await _firestore
           .collection('notes')
           .where('userId', isEqualTo: user.uid)
@@ -55,104 +51,109 @@ class _CodeStoringPageState extends State<CodeStoringPage> {
   }
 
   // Save note to Firestore
-Future<void> _saveNote() async {
-  final title = _titleController.text.trim();
-  final codeSnippet = _codeController.text.trim();
+  Future<void> _saveNote() async {
+    final title = _titleController.text.trim();
+    final codeSnippet = _codeController.text.trim();
 
-  // Validate at least title or code exists
-  if (title.isEmpty && codeSnippet.isEmpty) {
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(content: Text('Please add a title or code snippet')),
-    );
-    return;
-  }
+    if (title.isEmpty && codeSnippet.isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Please add a title or code snippet')),
+      );
+      return;
+    }
 
-  final user = _auth.currentUser;
-  if (user == null) {
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(content: Text('You must be logged in to save notes')),
-    );
-    return;
-  }
+    final user = _auth.currentUser;
+    if (user == null) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('You must be logged in to save notes')),
+      );
+      return;
+    }
 
-  try {
-    String? imageUrl;
-    
-    // Only process image if one was selected
-    if (_image != null || _imageBytes != null) {
-      final fileName = '${user.uid}_${DateTime.now().millisecondsSinceEpoch}';
-      final storageRef = _storage.ref().child('note_images/$fileName');
+    try {
+      String? imageUrl;
       
-      // Platform-specific upload
-      if (kIsWeb && _imageBytes != null) {
-        await storageRef.putData(_imageBytes!);
-      } else if (_image != null) {
-        await storageRef.putFile(_image!);
+      if (_image != null) {
+        print('Starting image upload...');
+        final fileName = '${user.uid}_${DateTime.now().millisecondsSinceEpoch}.jpg';
+        final storageRef = _storage.ref().child('note_images/$fileName');
+        
+        print('Uploading image...');
+        final metadata = SettableMetadata(
+          contentType: 'image/jpeg',
+        );
+        await storageRef.putFile(_image!, metadata);
+        
+        imageUrl = await storageRef.getDownloadURL();
+        print('Image uploaded successfully. URL: $imageUrl');
       }
-      
-      imageUrl = await storageRef.getDownloadURL();
+
+      if (_editingIndex != null) {
+        print('Updating existing note...');
+        final currentImageUrl = _notes[_editingIndex!]['imageUrl'];
+        await _firestore.collection('notes').doc(_notes[_editingIndex!]['id']).update({
+          'title': title,
+          'code': codeSnippet,
+          'imageUrl': imageUrl ?? currentImageUrl,
+          'updatedAt': FieldValue.serverTimestamp(),
+        });
+      } else {
+        print('Creating new note...');
+        await _firestore.collection('notes').add({
+          'userId': user.uid,
+          'title': title,
+          'code': codeSnippet,
+          'imageUrl': imageUrl,
+          'createdAt': FieldValue.serverTimestamp(),
+          'updatedAt': FieldValue.serverTimestamp(),
+        });
+      }
+
+      _resetForm();
+      await _loadNotes();
+      print('Note saved successfully');
+
+    } catch (e) {
+      print('Error saving note: $e');
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('Error saving note: ${e.toString()}'),
+          duration: Duration(seconds: 5),
+        ),
+      );
     }
-
-    // Update or create note
-    if (_editingIndex != null) {
-      // Keep existing image if no new one was selected
-      final currentImageUrl = _notes[_editingIndex!]['imageUrl'];
-      await _firestore.collection('notes').doc(_notes[_editingIndex!]['id']).update({
-        'title': title,
-        'code': codeSnippet,
-        'imageUrl': imageUrl ?? currentImageUrl,
-        'updatedAt': FieldValue.serverTimestamp(),
-      });
-    } else {
-      await _firestore.collection('notes').add({
-        'userId': user.uid,
-        'title': title,
-        'code': codeSnippet,
-        'imageUrl': imageUrl,
-        'createdAt': FieldValue.serverTimestamp(),
-        'updatedAt': FieldValue.serverTimestamp(),
-      });
-    }
-
-    // Clear form
-    _resetForm();
-    await _loadNotes();
-
-  } catch (e) {
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(content: Text('Error saving note: ${e.toString()}')),
-    );
   }
-} 
 
-void _resetForm() {
-  _titleController.clear();
-  _codeController.clear();
-  _image = null;
-  _imageBytes = null;
-  _isAddingNote = false;
-  _editingIndex = null;
-}
+  void _resetForm() {
+    _titleController.clear();
+    _codeController.clear();
+    _image = null;
+    _isAddingNote = false;
+    _editingIndex = null;
+  }
 
   // Function to pick an image from the gallery
   Future<void> _pickImage() async {
     try {
-      final XFile? pickedFile = await _picker.pickImage(source: ImageSource.gallery);
+      print('Starting image picker...');
+      final XFile? pickedFile = await _picker.pickImage(
+        source: ImageSource.gallery,
+        imageQuality: 80,
+      );
+      
       if (pickedFile != null) {
-        if (kIsWeb) {
-          final bytes = await pickedFile.readAsBytes();
-          setState(() {
-            _imageBytes = bytes;
-          });
-        } else {
-          setState(() {
-            _image = File(pickedFile.path);
-            _imageBytes = null;
-          });
-        }
+        print('Image picked successfully: ${pickedFile.path}');
+        setState(() {
+          _image = File(pickedFile.path);
+        });
+      } else {
+        print('No image was picked');
       }
     } catch (e) {
       print("Image picker error: $e");
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Error picking image: ${e.toString()}')),
+      );
     }
   }
 
@@ -161,8 +162,7 @@ void _resetForm() {
     setState(() {
       _titleController.text = _notes[index]['title'];
       _codeController.text = _notes[index]['code'];
-      _image = null; // You can load the image if needed
-      _imageBytes = null;
+      _image = null;
       _isAddingNote = true;
       _editingIndex = index;
     });
@@ -260,19 +260,7 @@ void _resetForm() {
                             fit: BoxFit.contain,
                           ),
                         )
-                      : (_imageBytes != null
-                          ? Container(
-                              height: 150,
-                              width: double.infinity,
-                              decoration: BoxDecoration(
-                                border: Border.all(color: const Color.fromARGB(255, 255, 16, 16)),
-                              ),
-                              child: Image.memory(
-                                _imageBytes!,
-                                fit: BoxFit.contain,
-                              ),
-                            )
-                          : Text("No image selected")),
+                      : Text("No image selected"),
                   SizedBox(height: 10),
                   Row(
                     mainAxisAlignment: MainAxisAlignment.spaceBetween,

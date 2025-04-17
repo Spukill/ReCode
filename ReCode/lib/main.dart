@@ -4,6 +4,7 @@ import 'login_screen.dart';
 import 'package:firebase_core/firebase_core.dart';
 import 'firebase_options.dart';
 import 'package:firebase_auth/firebase_auth.dart';
+import 'sign_up.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -44,7 +45,11 @@ class ReCodeApp extends StatelessWidget {
           error: Colors.red, // Explicit error color
         ),
       ),
-      home: AuthWrapper(),
+      initialRoute: '/',
+      routes: {
+        '/': (context) => AuthWrapper(),
+        '/signup': (context) => SignUpScreen(),
+      },
     );
   }
 }
@@ -53,16 +58,15 @@ class AuthWrapper extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return StreamBuilder<User?>(
-      stream: FirebaseAuth.instance.authStateChanges(), // This listens for authentication state changes
+      stream: FirebaseAuth.instance.authStateChanges(),
       builder: (context, snapshot) {
         if (snapshot.connectionState == ConnectionState.waiting) {
-          return Center(child: CircularProgressIndicator()); // While loading Firebase auth state
+          return Center(child: CircularProgressIndicator());
         }
         if (snapshot.hasData) {
-          return BottomNavigation(); // User is logged in
-        } else {
-          return LoginScreen(); // User is not logged in
+          return BottomNavigation();
         }
+        return LoginScreen();
       },
     );
   }
