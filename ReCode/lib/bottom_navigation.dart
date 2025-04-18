@@ -1,8 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:firebase_auth/firebase_auth.dart';
+import 'package:flutter_svg/flutter_svg.dart';
 import 'login_screen.dart';
 import 'code_storing.dart';
-import 'package:flutter_svg/flutter_svg.dart';
 
 class BottomNavigation extends StatefulWidget {
   @override
@@ -11,13 +11,42 @@ class BottomNavigation extends StatefulWidget {
 
 class _BottomNavigationState extends State<BottomNavigation> {
   int _currentIndex = 0;
-
   final List<Widget> _screens = [
     CodeStoringPage(),
     PlaceholderScreen(title: 'Community tab'),
     PlaceholderScreen(title: 'Questions and Answers'),
   ];
 
+  Future<void> _showLogoutConfirmation() async {
+    return showDialog(
+      context: context,
+      builder: (BuildContext context) {
+        return AlertDialog(
+          title: Text('Logout'),
+          content: Text('Are you sure you want to logout?'),
+          actions: <Widget>[
+            TextButton(
+              child: Text('Cancel'),
+              onPressed: () {
+                Navigator.of(context).pop();
+              },
+            ),
+            TextButton(
+              child: Text('Logout', style: TextStyle(color: Colors.red)),
+              onPressed: () async {
+                Navigator.of(context).pop();
+                await FirebaseAuth.instance.signOut();
+                Navigator.of(context, rootNavigator: true).pushAndRemoveUntil(
+                  MaterialPageRoute(builder: (context) => LoginScreen()),
+                  (route) => false,
+                );
+              },
+            ),
+          ],
+        );
+      },
+    );
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -27,19 +56,16 @@ class _BottomNavigationState extends State<BottomNavigation> {
         automaticallyImplyLeading: false,
         titleSpacing: 20,
         title: Row(
-          mainAxisAlignment: MainAxisAlignment.spaceBetween, // Pushes groups to extremes
+          mainAxisAlignment: MainAxisAlignment.spaceBetween,
           children: [
-            // SVG logo (PLACEHOLDER)
             Row(
               children: [
-                SvgPicture.asset (
+                SvgPicture.asset(
                   'assets/icons/logo.svg',
                   width: 30,
                   height: 25,
                 ),
-                
                 SizedBox(width: 10),
-                
                 Text(
                   'ReCode',
                   style: TextStyle(
@@ -50,23 +76,12 @@ class _BottomNavigationState extends State<BottomNavigation> {
                 ),
               ],
             ),
-
             IconButton(
               icon: Icon(Icons.logout, color: Colors.white),
-              onPressed: () async {
-                await FirebaseAuth.instance.signOut(); // Sign out first
-                Navigator.of(context, rootNavigator: true).pushAndRemoveUntil(
-                  MaterialPageRoute(builder: (context) => LoginScreen()),
-                  (route) => false,
-                );
-              }, 
-
-              // Could be changed later
-              splashColor: Colors.transparent,  // No splash effect
-              highlightColor: Colors.transparent,  // No highlight
-              hoverColor: Colors.transparent,  // No hover
-              // ---
-
+              onPressed: _showLogoutConfirmation,
+              splashColor: Colors.transparent,
+              highlightColor: Colors.transparent,
+              hoverColor: Colors.transparent,
               padding: EdgeInsets.zero,
               iconSize: 30,
               constraints: BoxConstraints(),

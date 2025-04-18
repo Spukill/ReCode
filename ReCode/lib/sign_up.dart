@@ -1,11 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:firebase_auth/firebase_auth.dart';
-import 'package:google_sign_in/google_sign_in.dart';
-import 'package:font_awesome_flutter/font_awesome_flutter.dart';
 import 'bottom_navigation.dart';
 import 'package:flutter_svg/flutter_svg.dart';
 import 'package:flutter/gestures.dart';
-import 'login_screen.dart';
 
 class SignUpScreen extends StatefulWidget {
   @override
@@ -223,6 +220,7 @@ class _SignUpScreenState extends State<SignUpScreen> with SingleTickerProviderSt
                             padding: EdgeInsetsDirectional.fromSTEB(0, 0, 0, 16),
                             child: TextField(
                               controller: _displayNameController,
+                              style: TextStyle(fontSize: 16),
                               decoration: InputDecoration(
                                 labelText: 'Display Name',
                                 labelStyle: TextStyle(
@@ -247,6 +245,7 @@ class _SignUpScreenState extends State<SignUpScreen> with SingleTickerProviderSt
                             padding: EdgeInsetsDirectional.fromSTEB(0, 0, 0, 16),
                             child: TextField(
                               controller: _emailController,
+                              style: TextStyle(fontSize: 16),
                               decoration: InputDecoration(
                                 labelText: 'Email',
                                 labelStyle: TextStyle(
@@ -271,6 +270,7 @@ class _SignUpScreenState extends State<SignUpScreen> with SingleTickerProviderSt
                             padding: EdgeInsetsDirectional.fromSTEB(0, 0, 0, 16),
                             child: TextField(
                               controller: _passwordController,
+                              style: TextStyle(fontSize: 16),
                               obscureText: !_passwordVisibility,
                               decoration: InputDecoration(
                                 labelText: 'Password',
@@ -304,6 +304,7 @@ class _SignUpScreenState extends State<SignUpScreen> with SingleTickerProviderSt
                             padding: EdgeInsetsDirectional.fromSTEB(0, 0, 0, 16),
                             child: TextField(
                               controller: _confirmPasswordController,
+                              style: TextStyle(fontSize: 16),
                               obscureText: !_confirmPasswordVisibility,
                               decoration: InputDecoration(
                                 labelText: 'Confirm Password',
