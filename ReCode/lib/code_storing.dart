@@ -27,6 +27,7 @@ class _CodeStoringPageState extends State<CodeStoringPage> with SingleTickerProv
   late AnimationController _animationController;
   late Animation<double> _rotationAnimation;
   String _selectedIcon = 'assets/icons/c++.svg';
+  int? _selectedNoteIndex;
 
   final List<String> _availableIcons = [
     'assets/icons/c++.svg',
@@ -211,28 +212,28 @@ class _CodeStoringPageState extends State<CodeStoringPage> with SingleTickerProv
   }
 
   // Save note to Firestore
-  Future<void> _saveNote() async {
-    final title = _titleController.text.trim();
-    final codeSnippet = _codeController.text.trim();
+Future<void> _saveNote() async {
+  final title = _titleController.text.trim();
+  final codeSnippet = _codeController.text.trim();
 
-    if (title.isEmpty && codeSnippet.isEmpty) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Please add a title or code snippet')),
-      );
-      return;
-    }
+  if (title.isEmpty && codeSnippet.isEmpty) {
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(content: Text('Please add a title or code snippet')),
+    );
+    return;
+  }
 
-    final user = _auth.currentUser;
-    if (user == null) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('You must be logged in to save notes')),
-      );
-      return;
-    }
+  final user = _auth.currentUser;
+  if (user == null) {
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(content: Text('You must be logged in to save notes')),
+    );
+    return;
+  }
 
-    try {
-      String? imageUrl;
-      
+  try {
+    String? imageUrl;
+    
       if (_image != null) {
         try {
           print('Starting image upload process...');
@@ -274,7 +275,7 @@ class _CodeStoringPageState extends State<CodeStoringPage> with SingleTickerProv
           print('Upload completed. State: ${snapshot.state}');
           
           if (snapshot.state == TaskState.success) {
-            imageUrl = await storageRef.getDownloadURL();
+      imageUrl = await storageRef.getDownloadURL();
             print('Successfully got download URL: $imageUrl');
           } else {
             throw Exception('Failed to upload image: ${snapshot.state}');
@@ -293,49 +294,49 @@ class _CodeStoringPageState extends State<CodeStoringPage> with SingleTickerProv
       }
 
       // Save the note data
-      if (_editingIndex != null) {
-        final currentImageUrl = _notes[_editingIndex!]['imageUrl'];
-        await _firestore.collection('notes').doc(_notes[_editingIndex!]['id']).update({
-          'title': title,
-          'code': codeSnippet,
-          'imageUrl': imageUrl ?? currentImageUrl,
-          'updatedAt': FieldValue.serverTimestamp(),
-        });
-      } else {
-        await _firestore.collection('notes').add({
-          'userId': user.uid,
+    if (_editingIndex != null) {
+      final currentImageUrl = _notes[_editingIndex!]['imageUrl'];
+      await _firestore.collection('notes').doc(_notes[_editingIndex!]['id']).update({
+        'title': title,
+        'code': codeSnippet,
+        'imageUrl': imageUrl ?? currentImageUrl,
+        'updatedAt': FieldValue.serverTimestamp(),
+      });
+    } else {
+      await _firestore.collection('notes').add({
+        'userId': user.uid,
           'folderId': _currentFolderId,
-          'title': title,
-          'code': codeSnippet,
-          'imageUrl': imageUrl,
-          'createdAt': FieldValue.serverTimestamp(),
-          'updatedAt': FieldValue.serverTimestamp(),
-        });
-      }
+        'title': title,
+        'code': codeSnippet,
+        'imageUrl': imageUrl,
+        'createdAt': FieldValue.serverTimestamp(),
+        'updatedAt': FieldValue.serverTimestamp(),
+      });
+    }
 
-      _resetForm();
+    _resetForm();
       if (_currentFolderId != null) {
         await _loadNotes(_currentFolderId!);
       }
-    } catch (e) {
+  } catch (e) {
       print('Error saving note: $e');
-      ScaffoldMessenger.of(context).showSnackBar(
+    ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
           content: Text('Error saving note: ${e.toString()}'),
           backgroundColor: Colors.red,
           duration: Duration(seconds: 5),
         ),
-      );
-    }
+    );
   }
+} 
 
-  void _resetForm() {
-    _titleController.clear();
-    _codeController.clear();
-    _image = null;
-    _isAddingNote = false;
-    _editingIndex = null;
-  }
+void _resetForm() {
+  _titleController.clear();
+  _codeController.clear();
+  _image = null;
+  _isAddingNote = false;
+  _editingIndex = null;
+}
 
   Future<void> _pickImage() async {
     try {
@@ -440,8 +441,8 @@ class _CodeStoringPageState extends State<CodeStoringPage> with SingleTickerProv
       return _notes;
     }
     return _notes.where((note) => 
-      note['title'].toLowerCase().contains(_searchController.text.toLowerCase()) ||
-      note['code'].toLowerCase().contains(_searchController.text.toLowerCase())
+      (note['title']?.toLowerCase().contains(_searchController.text.toLowerCase()) ?? false) ||
+      (note['code']?.toLowerCase().contains(_searchController.text.toLowerCase()) ?? false)
     ).toList();
   }
 
@@ -451,19 +452,30 @@ class _CodeStoringPageState extends State<CodeStoringPage> with SingleTickerProv
       appBar: AppBar(
         title: Padding(
           padding: EdgeInsets.only(top: 8.0),
-          child: TextField(
-            controller: _searchController,
-            decoration: InputDecoration(
-              hintText: 'Search',
-              prefixIcon: Icon(Icons.search),
-              border: OutlineInputBorder(
-                borderRadius: BorderRadius.circular(8.0),
-                borderSide: BorderSide.none,
-              ),
-              filled: true,
-              fillColor: Colors.white,
-            ),
-          ),
+          child: _selectedNoteIndex != null && !_isAddingNote
+              ? Text(
+                  'Note Details',
+                  style: TextStyle(
+                    fontSize: 20,
+                    fontWeight: FontWeight.bold,
+                  ),
+                )
+              : TextField(
+                  controller: _searchController,
+                  decoration: InputDecoration(
+                    hintText: _currentFolderId == null ? 'Search folders...' : 'Search notes...',
+                    prefixIcon: Icon(Icons.search),
+                    border: OutlineInputBorder(
+                      borderRadius: BorderRadius.circular(8.0),
+                      borderSide: BorderSide.none,
+                    ),
+                    filled: true,
+                    fillColor: Colors.white,
+                  ),
+                  onChanged: (value) {
+                    setState(() {}); // Rebuild the UI when search text changes
+                  },
+                ),
         ),
       ),
       body: _currentFolderId == null ? _buildFoldersView() : _buildNotesView(),
@@ -606,6 +618,66 @@ class _CodeStoringPageState extends State<CodeStoringPage> with SingleTickerProv
         .firstWhere((folder) => folder['id'] == _currentFolderId,
             orElse: () => {'name': 'Unknown Folder'})['name'];
 
+    if (_selectedNoteIndex != null && !_isAddingNote) {
+      return Column(
+        children: [
+          ListTile(
+            leading: IconButton(
+              icon: Icon(Icons.arrow_back),
+              onPressed: () {
+                setState(() {
+                  _selectedNoteIndex = null;
+                });
+              },
+            ),
+            title: Text(
+              _filteredNotes[_selectedNoteIndex!]['title'],
+              style: TextStyle(
+                fontSize: 20,
+                fontWeight: FontWeight.bold,
+              ),
+            ),
+          ),
+          Expanded(
+            child: SingleChildScrollView(
+              padding: EdgeInsets.all(16),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                mainAxisAlignment: MainAxisAlignment.start,
+                children: [
+                  if (_filteredNotes[_selectedNoteIndex!]['imageUrl'] != null)
+                    Container(
+                      width: double.infinity,
+                      height: 200,
+                      margin: EdgeInsets.only(bottom: 16),
+                      decoration: BoxDecoration(
+                        borderRadius: BorderRadius.circular(8),
+                        image: DecorationImage(
+                          image: NetworkImage(_filteredNotes[_selectedNoteIndex!]['imageUrl']),
+                          fit: BoxFit.cover,
+                        ),
+                      ),
+                    ),
+                  Container(
+                    width: double.infinity,
+                    child: SelectableText(
+                      _filteredNotes[_selectedNoteIndex!]['code'],
+                      style: TextStyle(
+                        fontSize: 16,
+                        height: 1.5,
+                        color: Colors.black87,
+                      ),
+                      textAlign: TextAlign.left,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ),
+        ],
+      );
+    }
+
     return Column(
       children: [
         ListTile(
@@ -745,7 +817,7 @@ class _CodeStoringPageState extends State<CodeStoringPage> with SingleTickerProv
                           SizedBox(height: 16),
                           Row(
                             mainAxisAlignment: MainAxisAlignment.end,
-        children: [
+                            children: [
                               TextButton.icon(
                                 onPressed: _pickImage,
                                 icon: Icon(Icons.image),
@@ -785,19 +857,61 @@ class _CodeStoringPageState extends State<CodeStoringPage> with SingleTickerProv
               itemBuilder: (context, index) {
                 return Card(
                   margin: EdgeInsets.all(8.0),
-                  child: ListTile(
-                    title: Text(_filteredNotes[index]['title'], style: TextStyle(fontWeight: FontWeight.bold)),
-                    subtitle: Text(_filteredNotes[index]['code'], maxLines: 2, overflow: TextOverflow.ellipsis),
-                    leading: _filteredNotes[index]['imageUrl'] != null
-                        ? Image.network(
-                            _filteredNotes[index]['imageUrl'],
+                  child: InkWell(
+                    onTap: () {
+                      setState(() {
+                        _selectedNoteIndex = index;
+                      });
+                    },
+                    child: Padding(
+                      padding: EdgeInsets.all(16.0),
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Row(
+                            children: [
+                              if (_filteredNotes[index]['imageUrl'] != null)
+                                Container(
                             width: 50,
                             height: 50,
+                                  margin: EdgeInsets.only(right: 16),
+                                  decoration: BoxDecoration(
+                                    borderRadius: BorderRadius.circular(8),
+                                    image: DecorationImage(
+                                      image: NetworkImage(_filteredNotes[index]['imageUrl']),
                             fit: BoxFit.cover,
-                          )
-                        : null,
-                    trailing: Row(
-                      mainAxisSize: MainAxisSize.min,
+                                    ),
+                                  ),
+                                ),
+                              Expanded(
+                                child: Column(
+                                  crossAxisAlignment: CrossAxisAlignment.start,
+                                  children: [
+                                    Text(
+                                      _filteredNotes[index]['title'],
+                                      style: TextStyle(
+                                        fontSize: 18,
+                                        fontWeight: FontWeight.bold,
+                                        color: Colors.black87,
+                                      ),
+                                    ),
+                                    SizedBox(height: 4),
+                                    Text(
+                                      _filteredNotes[index]['code'],
+                                      maxLines: 2,
+                                      overflow: TextOverflow.ellipsis,
+                                      style: TextStyle(
+                                        color: Colors.black87,
+                                      ),
+                                    ),
+                                  ],
+                                ),
+                              ),
+                            ],
+                          ),
+                          SizedBox(height: 8),
+                          Row(
+                            mainAxisAlignment: MainAxisAlignment.end,
                       children: [
                         IconButton(
                           icon: Icon(Icons.edit, color: Colors.blue),
@@ -808,6 +922,9 @@ class _CodeStoringPageState extends State<CodeStoringPage> with SingleTickerProv
                           onPressed: () => _deleteNote(index),
                         ),
                       ],
+                          ),
+                        ],
+                      ),
                     ),
                   ),
                 );
@@ -822,7 +939,7 @@ class _CodeStoringPageState extends State<CodeStoringPage> with SingleTickerProv
     return AlertDialog(
       title: Text('Select Programming Language'),
       content: SingleChildScrollView(
-        child: Column(
+              child: Column(
           children: [
             for (var i = 0; i < _availableIcons.length; i += 3)
               Row(
@@ -861,12 +978,12 @@ class _CodeStoringPageState extends State<CodeStoringPage> with SingleTickerProv
                           ),
                         ],
                       ),
-                    ),
+                      ),
+                    ],
+                  ),
                 ],
               ),
-          ],
-        ),
-      ),
+            ),
     );
   }
 
