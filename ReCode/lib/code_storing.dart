@@ -241,6 +241,86 @@ class _CodeStoringPageState extends State<CodeStoringPage> with SingleTickerProv
     }
   }
 
+  Future<void> _shareFolder(String folderId, String folderName, String icon) async {
+    final user = _auth.currentUser;
+    if (user == null) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('You must be logged in to share folders'),
+          backgroundColor: Colors.red,
+          behavior: SnackBarBehavior.floating,
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(8),
+          ),
+          duration: Duration(seconds: 2),
+        ),
+      );
+      return;
+    }
+
+    setState(() => _isLoading = true);
+    try {
+      // First, get all notes from the folder
+      QuerySnapshot notesSnapshot = await _firestore
+          .collection('notes')
+          .where('userId', isEqualTo: user.uid)
+          .where('folderId', isEqualTo: folderId)
+          .get();
+
+      // Create the shared folder
+      final sharedFolderRef = await _firestore.collection('sharedFolders').add({
+        'name': folderName,
+        'icon': icon,
+        'ownerId': user.uid,
+        'ownerName': user.email ?? 'Anonymous',
+        'createdAt': FieldValue.serverTimestamp(),
+        'likes': 0,
+        'likedBy': [],
+        'originalFolderId': folderId,
+      });
+
+      // Copy all notes to sharedNotes collection
+      for (var doc in notesSnapshot.docs) {
+        await _firestore.collection('sharedNotes').add({
+          'sharedFolderId': sharedFolderRef.id,
+          'originalNoteId': doc.id, // Store the original note ID
+          'title': doc['title'],
+          'code': doc['code'],
+          'imageUrl': doc['imageUrl'],
+          'createdAt': doc['createdAt'] ?? FieldValue.serverTimestamp(),
+          'ownerId': user.uid,
+          'ownerName': user.email ?? 'Anonymous',
+        });
+      }
+
+      setState(() => _isLoading = false);
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('Folder shared successfully!'),
+          backgroundColor: Colors.green,
+          behavior: SnackBarBehavior.floating,
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(8),
+          ),
+          duration: Duration(seconds: 2),
+        ),
+      );
+    } catch (e) {
+      setState(() => _isLoading = false);
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('Error sharing folder: ${e.toString()}'),
+          backgroundColor: Colors.red,
+          behavior: SnackBarBehavior.floating,
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(8),
+          ),
+          duration: Duration(seconds: 2),
+        ),
+      );
+    }
+  }
+
   Future<void> _saveNote() async {
     final title = _titleController.text.trim();
     final codeSnippet = _codeController.text.trim();
@@ -332,15 +412,33 @@ class _CodeStoringPageState extends State<CodeStoringPage> with SingleTickerProv
       }
 
       if (_editingIndex != null) {
+        final noteId = _notes[_editingIndex!]['id'];
         final currentImageUrl = _notes[_editingIndex!]['imageUrl'];
-        await _firestore.collection('notes').doc(_notes[_editingIndex!]['id']).update({
+        
+        // Update the original note
+        await _firestore.collection('notes').doc(noteId).update({
           'title': title,
           'code': codeSnippet,
-          'imageUrl': imageUrl,
+          'imageUrl': imageUrl ?? currentImageUrl, // Keep existing image if no new one is uploaded
           'updatedAt': FieldValue.serverTimestamp(),
         });
+
+        // Find and update any shared versions of this note
+        QuerySnapshot sharedNotesSnapshot = await _firestore
+            .collection('sharedNotes')
+            .where('originalNoteId', isEqualTo: noteId)
+            .get();
+
+        for (var doc in sharedNotesSnapshot.docs) {
+          await doc.reference.update({
+            'title': title,
+            'code': codeSnippet,
+            'imageUrl': imageUrl ?? currentImageUrl, // Keep existing image if no new one is uploaded
+            'updatedAt': FieldValue.serverTimestamp(),
+          });
+        }
       } else {
-        await _firestore.collection('notes').add({
+        final newNoteRef = await _firestore.collection('notes').add({
           'userId': user.uid,
           'folderId': _currentFolderId,
           'title': title,
@@ -349,6 +447,25 @@ class _CodeStoringPageState extends State<CodeStoringPage> with SingleTickerProv
           'createdAt': FieldValue.serverTimestamp(),
           'updatedAt': FieldValue.serverTimestamp(),
         });
+
+        // If this note is in a shared folder, create a shared version
+        QuerySnapshot sharedFoldersSnapshot = await _firestore
+            .collection('sharedFolders')
+            .where('originalFolderId', isEqualTo: _currentFolderId)
+            .get();
+
+        for (var folderDoc in sharedFoldersSnapshot.docs) {
+          await _firestore.collection('sharedNotes').add({
+            'sharedFolderId': folderDoc.id,
+            'originalNoteId': newNoteRef.id,
+            'title': title,
+            'code': codeSnippet,
+            'imageUrl': imageUrl,
+            'createdAt': FieldValue.serverTimestamp(),
+            'ownerId': user.uid,
+            'ownerName': user.email ?? 'Anonymous',
+          });
+        }
       }
 
       _resetForm();
@@ -385,9 +502,9 @@ class _CodeStoringPageState extends State<CodeStoringPage> with SingleTickerProv
       );
       
       if (pickedFile != null) {
-        setState(() {
-          _image = File(pickedFile.path);
-        });
+          setState(() {
+            _image = File(pickedFile.path);
+          });
       }
     } catch (e) {
       ScaffoldMessenger.of(context).showSnackBar(
@@ -688,12 +805,21 @@ class _CodeStoringPageState extends State<CodeStoringPage> with SingleTickerProv
                             overflow: TextOverflow.ellipsis,
                           ),
                         ),
-                        Padding(
-                          padding: EdgeInsets.all(8),
-                          child: IconButton(
-                            icon: Icon(Icons.delete, color: Colors.red, size: 20),
-                            onPressed: () => _deleteFolder(_filteredFolders[index]['id']),
-                          ),
+                        Row(
+                          children: [
+                            IconButton(
+                              icon: Icon(Icons.share, color: Theme.of(context).primaryColor),
+                              onPressed: () => _showShareConfirmationDialog(
+                                _filteredFolders[index]['id'],
+                                _filteredFolders[index]['name'],
+                                _filteredFolders[index]['icon'],
+                              ),
+                            ),
+                            IconButton(
+                              icon: Icon(Icons.delete, color: Colors.red, size: 20),
+                              onPressed: () => _deleteFolder(_filteredFolders[index]['id']),
+                            ),
+                          ],
                         ),
                       ],
                     ),
@@ -704,6 +830,33 @@ class _CodeStoringPageState extends State<CodeStoringPage> with SingleTickerProv
           ),
         ),
       ],
+    );
+  }
+
+  void _showShareConfirmationDialog(String folderId, String folderName, String icon) {
+    showDialog(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: Text('Share Folder'),
+        content: Text('Are you sure you want to share "$folderName" with the community?'),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context),
+            child: Text('Cancel'),
+          ),
+          ElevatedButton(
+            onPressed: () {
+              Navigator.pop(context);
+              _shareFolder(folderId, folderName, icon);
+            },
+            style: ElevatedButton.styleFrom(
+              backgroundColor: Theme.of(context).primaryColor,
+              foregroundColor: Colors.white,
+            ),
+            child: Text('Share'),
+          ),
+        ],
+      ),
     );
   }
 
@@ -982,8 +1135,18 @@ class _CodeStoringPageState extends State<CodeStoringPage> with SingleTickerProv
           ),
         if (!_isAddingNote)
           Expanded(
-            child: ListView.builder(
-              itemCount: _filteredNotes.length,
+            child: _filteredNotes.isEmpty
+                ? Center(
+                    child: Text(
+                      'No notes in this folder',
+                      style: TextStyle(
+                        fontSize: 16,
+                        color: Colors.grey[600],
+                      ),
+                    ),
+                  )
+                : ListView.builder(
+                    itemCount: _filteredNotes.length,
               itemBuilder: (context, index) {
                 return Card(
                   margin: EdgeInsets.all(8.0),
@@ -1039,7 +1202,6 @@ class _CodeStoringPageState extends State<CodeStoringPage> with SingleTickerProv
                               ),
                             ],
                           ),
-                          SizedBox(height: 8),
                           Row(
                             mainAxisAlignment: MainAxisAlignment.end,
                             children: [
