@@ -3,6 +3,7 @@ import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter_svg/flutter_svg.dart';
 import 'login_screen.dart';
 import 'code_storing.dart';
+import 'community_page.dart';
 
 class BottomNavigation extends StatefulWidget {
   @override
@@ -13,7 +14,7 @@ class _BottomNavigationState extends State<BottomNavigation> {
   int _currentIndex = 0;
   final List<Widget> _screens = [
     CodeStoringPage(),
-    PlaceholderScreen(title: 'Community tab'),
+    CodeSharingPage(),
     PlaceholderScreen(title: 'Questions and Answers'),
   ];
 

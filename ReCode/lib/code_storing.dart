@@ -6,6 +6,35 @@ import 'package:image_picker/image_picker.dart';
 import 'package:firebase_storage/firebase_storage.dart';
 import 'package:flutter_svg/flutter_svg.dart';
 
+class LoadingOverlay extends StatelessWidget {
+  final bool isLoading;
+  final Widget child;
+
+  const LoadingOverlay({
+    Key? key,
+    required this.isLoading,
+    required this.child,
+  }) : super(key: key);
+
+  @override
+  Widget build(BuildContext context) {
+    return Stack(
+      children: [
+        child,
+        if (isLoading)
+          Container(
+            color: Colors.black.withOpacity(0.5),
+            child: Center(
+              child: CircularProgressIndicator(
+                valueColor: AlwaysStoppedAnimation<Color>(Colors.blue),
+              ),
+            ),
+          ),
+      ],
+    );
+  }
+}
+
 class CodeStoringPage extends StatefulWidget {
   @override
   _CodeStoringPageState createState() => _CodeStoringPageState();
@@ -28,6 +57,7 @@ class _CodeStoringPageState extends State<CodeStoringPage> with SingleTickerProv
   late Animation<double> _rotationAnimation;
   String _selectedIcon = 'assets/icons/c++.svg';
   int? _selectedNoteIndex;
+  bool _isLoading = false;
 
   final List<String> _availableIcons = [
     'assets/icons/c++.svg',
@@ -68,10 +98,10 @@ class _CodeStoringPageState extends State<CodeStoringPage> with SingleTickerProv
     super.dispose();
   }
 
-  // Load folders from Firestore
   Future<void> _loadFolders() async {
-    if (!mounted) return; // Check if the widget is still mounted
+    if (!mounted) return;
     
+    setState(() => _isLoading = true);
     User? user = _auth.currentUser;
     if (user != null) {
       try {
@@ -80,15 +110,12 @@ class _CodeStoringPageState extends State<CodeStoringPage> with SingleTickerProv
             .where('userId', isEqualTo: user.uid)
             .get();
         
-        // Sort folders locally after fetching
         List<Map<String, dynamic>> sortedFolders = snapshot.docs.map((doc) {
-          // Handle both string and integer icon data
           dynamic iconData = doc['icon'];
           String icon;
           if (iconData is String) {
             icon = iconData;
           } else {
-            // Default to C++ icon if the data is invalid
             icon = 'assets/icons/c++.svg';
           }
 
@@ -102,13 +129,15 @@ class _CodeStoringPageState extends State<CodeStoringPage> with SingleTickerProv
         
         sortedFolders.sort((a, b) => (a['createdAt'] as DateTime).compareTo(b['createdAt'] as DateTime));
         
-        if (mounted) { // Check again if the widget is still mounted
+        if (mounted) {
           setState(() {
             _folders = sortedFolders;
+            _isLoading = false;
           });
         }
       } catch (e) {
-        if (mounted) { // Check if the widget is still mounted
+        if (mounted) {
+          setState(() => _isLoading = false);
           ScaffoldMessenger.of(context).showSnackBar(
             SnackBar(
               content: Text('Error loading folders: ${e.toString()}'),
@@ -125,7 +154,6 @@ class _CodeStoringPageState extends State<CodeStoringPage> with SingleTickerProv
     }
   }
 
-  // Load notes from a specific folder
   Future<void> _loadNotes(String folderId) async {
     User? user = _auth.currentUser;
     if (user != null) {
@@ -148,7 +176,6 @@ class _CodeStoringPageState extends State<CodeStoringPage> with SingleTickerProv
     }
   }
 
-  // Add new folder
   Future<void> _addFolder() async {
     final name = _folderNameController.text.trim();
     if (name.isEmpty) {
@@ -182,6 +209,7 @@ class _CodeStoringPageState extends State<CodeStoringPage> with SingleTickerProv
       return;
     }
 
+    setState(() => _isLoading = true);
     try {
       await _firestore.collection('folders').add({
         'userId': user.uid,
@@ -194,9 +222,11 @@ class _CodeStoringPageState extends State<CodeStoringPage> with SingleTickerProv
       setState(() {
         _isAddingFolder = false;
         _selectedIcon = 'assets/icons/c++.svg';
+        _isLoading = false;
       });
       await _loadFolders();
     } catch (e) {
+      setState(() => _isLoading = false);
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
           content: Text('Error creating folder: ${e.toString()}'),
@@ -211,132 +241,141 @@ class _CodeStoringPageState extends State<CodeStoringPage> with SingleTickerProv
     }
   }
 
-  // Save note to Firestore
-Future<void> _saveNote() async {
-  final title = _titleController.text.trim();
-  final codeSnippet = _codeController.text.trim();
+  Future<void> _saveNote() async {
+    final title = _titleController.text.trim();
+    final codeSnippet = _codeController.text.trim();
 
-  if (title.isEmpty && codeSnippet.isEmpty) {
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(content: Text('Please add a title or code snippet')),
-    );
-    return;
-  }
+    if (title.isEmpty && codeSnippet.isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Please add a title or code snippet')),
+      );
+      return;
+    }
 
-  final user = _auth.currentUser;
-  if (user == null) {
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(content: Text('You must be logged in to save notes')),
-    );
-    return;
-  }
+    final user = _auth.currentUser;
+    if (user == null) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('You must be logged in to save notes')),
+      );
+      return;
+    }
 
-  try {
-    String? imageUrl;
-    
-      if (_image != null) {
-        try {
-          print('Starting image upload process...');
-          
-          // Verify Firebase Storage instance
-          if (_storage == null) {
-            throw Exception('Firebase Storage instance is null');
+    setState(() => _isLoading = true);
+    try {
+      String? imageUrl;
+      
+      // Handle image removal during editing
+      if (_editingIndex != null && _image != null && _image!.path.isEmpty) {
+        // Delete the old image if it exists
+        if (_notes[_editingIndex!]['imageUrl'] != null) {
+          try {
+            final oldImageUrl = _notes[_editingIndex!]['imageUrl'];
+            final storageRef = _storage.refFromURL(oldImageUrl);
+            await storageRef.delete();
+            print('Old image deleted successfully');
+          } catch (e) {
+            print('Error deleting old image: $e');
           }
-          
-          // Create a unique filename for the image
+        }
+        imageUrl = null; // Set to null to remove the image
+      }
+      // Handle new image upload
+      else if (_image != null && _image!.path.isNotEmpty) {
+        try {
+          // If editing a note and it has an old image, delete it first
+          if (_editingIndex != null && _notes[_editingIndex!]['imageUrl'] != null) {
+            try {
+              final oldImageUrl = _notes[_editingIndex!]['imageUrl'];
+              final storageRef = _storage.refFromURL(oldImageUrl);
+              await storageRef.delete();
+              print('Old image deleted successfully');
+            } catch (e) {
+              print('Error deleting old image: $e');
+              // Continue with the upload even if old image deletion fails
+            }
+          }
+
           final timestamp = DateTime.now().millisecondsSinceEpoch;
-          final fileName = '${user.uid}_$timestamp.jpg';
-          print('Generated filename: $fileName');
+          final fileExtension = _image!.path.split('.').last;
+          final fileName = '${user.uid}_$timestamp.$fileExtension';
           
-          // Create a reference to the location where we'll store the image
           final storageRef = _storage.ref().child('note_images').child(fileName);
-          print('Created storage reference: ${storageRef.fullPath}');
           
-          // Create metadata for the image
           final metadata = SettableMetadata(
-            contentType: 'image/jpeg',
+            contentType: 'image/$fileExtension',
             customMetadata: {
-              'userId': user.uid,
+              'uploadedBy': user.uid,
               'timestamp': timestamp.toString(),
             },
           );
           
-          print('Starting file upload...');
-          // Upload the image
-          final uploadTask = storageRef.putFile(_image!, metadata);
+          final uploadTask = await storageRef.putFile(_image!, metadata);
           
-          // Monitor upload progress
-          uploadTask.snapshotEvents.listen((TaskSnapshot snapshot) {
-            print('Upload progress: ${(snapshot.bytesTransferred / snapshot.totalBytes) * 100}%');
-          });
-          
-          // Wait for upload to complete
-          final TaskSnapshot snapshot = await uploadTask;
-          print('Upload completed. State: ${snapshot.state}');
-          
-          if (snapshot.state == TaskState.success) {
-      imageUrl = await storageRef.getDownloadURL();
-            print('Successfully got download URL: $imageUrl');
+          if (uploadTask.state == TaskState.success) {
+            imageUrl = await storageRef.getDownloadURL();
+            print('New image uploaded successfully: $imageUrl');
           } else {
-            throw Exception('Failed to upload image: ${snapshot.state}');
+            throw Exception('Failed to upload image: ${uploadTask.state}');
           }
-        } catch (e, stackTrace) {
+        } catch (e) {
+          setState(() => _isLoading = false);
           print('Error uploading image: $e');
-          print('Stack trace: $stackTrace');
           ScaffoldMessenger.of(context).showSnackBar(
             SnackBar(
               content: Text('Error uploading image: ${e.toString()}'),
               backgroundColor: Colors.red,
+              duration: Duration(seconds: 5),
             ),
           );
           return;
         }
       }
 
-      // Save the note data
-    if (_editingIndex != null) {
-      final currentImageUrl = _notes[_editingIndex!]['imageUrl'];
-      await _firestore.collection('notes').doc(_notes[_editingIndex!]['id']).update({
-        'title': title,
-        'code': codeSnippet,
-        'imageUrl': imageUrl ?? currentImageUrl,
-        'updatedAt': FieldValue.serverTimestamp(),
-      });
-    } else {
-      await _firestore.collection('notes').add({
-        'userId': user.uid,
+      if (_editingIndex != null) {
+        final currentImageUrl = _notes[_editingIndex!]['imageUrl'];
+        await _firestore.collection('notes').doc(_notes[_editingIndex!]['id']).update({
+          'title': title,
+          'code': codeSnippet,
+          'imageUrl': imageUrl,
+          'updatedAt': FieldValue.serverTimestamp(),
+        });
+      } else {
+        await _firestore.collection('notes').add({
+          'userId': user.uid,
           'folderId': _currentFolderId,
-        'title': title,
-        'code': codeSnippet,
-        'imageUrl': imageUrl,
-        'createdAt': FieldValue.serverTimestamp(),
-        'updatedAt': FieldValue.serverTimestamp(),
-      });
-    }
+          'title': title,
+          'code': codeSnippet,
+          'imageUrl': imageUrl,
+          'createdAt': FieldValue.serverTimestamp(),
+          'updatedAt': FieldValue.serverTimestamp(),
+        });
+      }
 
-    _resetForm();
+      _resetForm();
       if (_currentFolderId != null) {
         await _loadNotes(_currentFolderId!);
       }
-  } catch (e) {
+      setState(() => _isLoading = false);
+    } catch (e) {
+      setState(() => _isLoading = false);
       print('Error saving note: $e');
-    ScaffoldMessenger.of(context).showSnackBar(
+      ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
           content: Text('Error saving note: ${e.toString()}'),
           backgroundColor: Colors.red,
           duration: Duration(seconds: 5),
         ),
-    );
+      );
+    }
   }
-} 
 
-void _resetForm() {
-  _titleController.clear();
-  _codeController.clear();
-  _image = null;
-  _isAddingNote = false;
-  _editingIndex = null;
-}
+  void _resetForm() {
+    _titleController.clear();
+    _codeController.clear();
+    _image = null;
+    _isAddingNote = false;
+    _editingIndex = null;
+  }
 
   Future<void> _pickImage() async {
     try {
@@ -346,15 +385,26 @@ void _resetForm() {
       );
       
       if (pickedFile != null) {
-          setState(() {
-            _image = File(pickedFile.path);
-          });
+        setState(() {
+          _image = File(pickedFile.path);
+        });
       }
     } catch (e) {
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(content: Text('Error picking image: ${e.toString()}')),
       );
     }
+  }
+
+  void _removeImage() {
+    setState(() {
+      if (_editingIndex != null) {
+        // When editing, we need to track that we want to remove the image
+        _image = File(''); // Set to empty file to indicate removal
+      } else {
+        _image = null;
+      }
+    });
   }
 
   void _editNote(int index) {
@@ -368,24 +418,67 @@ void _resetForm() {
   }
 
   Future<void> _deleteNote(int index) async {
+    setState(() => _isLoading = true);
     try {
       await _firestore.collection('notes').doc(_notes[index]['id']).delete();
+      print('Note deleted from Firestore');
+      
       if (_notes[index]['imageUrl'] != null) {
-        await _storage.refFromURL(_notes[index]['imageUrl']).delete();
+        final imageUrl = _notes[index]['imageUrl'];
+        try {
+          print('Attempting to delete image: $imageUrl');
+          
+          final storageRef = _storage.refFromURL(imageUrl);
+          print('Got storage reference');
+          
+          await storageRef.delete();
+          print('Image deleted successfully');
+        } catch (e) {
+          print('Error deleting image: $e');
+          try {
+            final uri = Uri.parse(imageUrl);
+            final path = uri.path.split('/o/')[1].split('?')[0];
+            print('Extracted path: $path');
+            
+            final storageRef = _storage.ref().child(path);
+            print('Created storage reference');
+            
+            await storageRef.delete();
+            print('Image deleted successfully using alternative method');
+          } catch (e2) {
+            print('Error with alternative deletion method: $e2');
+            ScaffoldMessenger.of(context).showSnackBar(
+              SnackBar(
+                content: Text('Error deleting image: ${e.toString()}'),
+                backgroundColor: Colors.red,
+                duration: Duration(seconds: 5),
+              ),
+            );
+          }
+        }
       }
+      
       setState(() {
         _notes.removeAt(index);
+        _isLoading = false;
       });
+      print('Note removed from local state');
     } catch (e) {
+      setState(() => _isLoading = false);
+      print('Error deleting note: $e');
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Error deleting note: ${e.toString()}')),
+        SnackBar(
+          content: Text('Error deleting note: ${e.toString()}'),
+          backgroundColor: Colors.red,
+          duration: Duration(seconds: 5),
+        ),
       );
     }
   }
 
   Future<void> _deleteFolder(String folderId) async {
+    setState(() => _isLoading = true);
     try {
-      // Delete all notes in the folder
       QuerySnapshot notesSnapshot = await _firestore
           .collection('notes')
           .where('folderId', isEqualTo: folderId)
@@ -398,7 +491,6 @@ void _resetForm() {
         await doc.reference.delete();
       }
 
-      // Delete the folder
       await _firestore.collection('folders').doc(folderId).delete();
       
       setState(() {
@@ -407,8 +499,10 @@ void _resetForm() {
           _currentFolderId = null;
           _notes.clear();
         }
+        _isLoading = false;
       });
     } catch (e) {
+      setState(() => _isLoading = false);
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(content: Text('Error deleting folder: ${e.toString()}')),
       );
@@ -425,7 +519,6 @@ void _resetForm() {
     return 'Unknown';
   }
 
-  // Get filtered folders based on search text
   List<Map<String, dynamic>> get _filteredFolders {
     if (_searchController.text.isEmpty) {
       return _folders;
@@ -435,7 +528,6 @@ void _resetForm() {
     ).toList();
   }
 
-  // Get filtered notes based on search text
   List<Map<String, dynamic>> get _filteredNotes {
     if (_searchController.text.isEmpty) {
       return _notes;
@@ -448,63 +540,66 @@ void _resetForm() {
 
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
-      appBar: AppBar(
-        title: Padding(
-          padding: EdgeInsets.only(top: 8.0),
-          child: _selectedNoteIndex != null && !_isAddingNote
-              ? Text(
-                  'Note Details',
-                  style: TextStyle(
-                    fontSize: 20,
-                    fontWeight: FontWeight.bold,
-                  ),
-                )
-              : TextField(
-                  controller: _searchController,
-                  decoration: InputDecoration(
-                    hintText: _currentFolderId == null ? 'Search folders...' : 'Search notes...',
-                    prefixIcon: Icon(Icons.search),
-                    border: OutlineInputBorder(
-                      borderRadius: BorderRadius.circular(8.0),
-                      borderSide: BorderSide.none,
+    return LoadingOverlay(
+      isLoading: _isLoading,
+      child: Scaffold(
+        appBar: AppBar(
+          title: Padding(
+            padding: EdgeInsets.only(top: 8.0),
+            child: _selectedNoteIndex != null && !_isAddingNote
+                ? Text(
+                    'Note Details',
+                    style: TextStyle(
+                      fontSize: 20,
+                      fontWeight: FontWeight.bold,
                     ),
-                    filled: true,
-                    fillColor: Colors.white,
+                  )
+                : TextField(
+                    controller: _searchController,
+                    decoration: InputDecoration(
+                      hintText: _currentFolderId == null ? 'Search folders...' : 'Search notes...',
+                      prefixIcon: Icon(Icons.search),
+                      border: OutlineInputBorder(
+                        borderRadius: BorderRadius.circular(8.0),
+                        borderSide: BorderSide.none,
+                      ),
+                      filled: true,
+                      fillColor: Colors.white,
+                    ),
+                    onChanged: (value) {
+                      setState(() {}); // Rebuild the UI when search text changes
+                    },
                   ),
-                  onChanged: (value) {
-                    setState(() {}); // Rebuild the UI when search text changes
-                  },
-                ),
+          ),
         ),
-      ),
-      body: _currentFolderId == null ? _buildFoldersView() : _buildNotesView(),
-      floatingActionButton: FloatingActionButton(
-        onPressed: () {
-          setState(() {
-            if (_currentFolderId == null) {
-              _isAddingFolder = !_isAddingFolder;
-              if (_isAddingFolder) {
-                _animationController.forward();
+        body: _currentFolderId == null ? _buildFoldersView() : _buildNotesView(),
+        floatingActionButton: FloatingActionButton(
+          onPressed: () {
+            setState(() {
+              if (_currentFolderId == null) {
+                _isAddingFolder = !_isAddingFolder;
+                if (_isAddingFolder) {
+                  _animationController.forward();
+                } else {
+                  _animationController.reverse();
+                  _folderNameController.clear();
+                }
               } else {
-                _animationController.reverse();
-                _folderNameController.clear();
+                _isAddingNote = true;
               }
-            } else {
-              _isAddingNote = true;
-            }
-          });
-        },
-        child: AnimatedBuilder(
-          animation: _rotationAnimation,
-          builder: (context, child) {
-            return Transform.rotate(
-              angle: (_rotationAnimation.value * 3.14159) + (3.14159 / 2),
-              child: Icon(_currentFolderId == null 
-                ? (_isAddingFolder ? Icons.remove : Icons.add)
-                : Icons.add),
-            );
+            });
           },
+          child: AnimatedBuilder(
+            animation: _rotationAnimation,
+            builder: (context, child) {
+              return Transform.rotate(
+                angle: (_rotationAnimation.value * 3.14159) + (3.14159 / 2),
+                child: Icon(_currentFolderId == null 
+                  ? (_isAddingFolder ? Icons.remove : Icons.add)
+                  : Icons.add),
+              );
+            },
+          ),
         ),
       ),
     );
@@ -613,7 +708,6 @@ void _resetForm() {
   }
 
   Widget _buildNotesView() {
-    // Find the current folder's name
     String currentFolderName = _folders
         .firstWhere((folder) => folder['id'] == _currentFolderId,
             orElse: () => {'name': 'Unknown Folder'})['name'];
@@ -687,6 +781,11 @@ void _resetForm() {
               setState(() {
                 _currentFolderId = null;
                 _notes.clear();
+                _editingIndex = null;
+                _isAddingNote = false;
+                _titleController.clear();
+                _codeController.clear();
+                _image = null;
               });
             },
           ),
@@ -714,7 +813,7 @@ void _resetForm() {
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
                           Text(
-                            'Create New Note',
+                            _editingIndex != null ? 'Edit Note' : 'Create New Note',
                             style: TextStyle(
                               fontSize: 20,
                               fontWeight: FontWeight.bold,
@@ -744,88 +843,119 @@ void _resetForm() {
                             maxLines: 8,
                           ),
                           SizedBox(height: 24),
-                          Text(
-                            'Add Image (Optional)',
-                            style: TextStyle(
-                              fontSize: 16,
-                              fontWeight: FontWeight.w500,
+                          if (_editingIndex == null) ...[
+                            Text(
+                              'Add Image (Optional)',
+                              style: TextStyle(
+                                fontSize: 16,
+                                fontWeight: FontWeight.w500,
+                              ),
                             ),
-                          ),
-                          SizedBox(height: 12),
-                          _image != null
-                              ? Stack(
-                                  children: [
-                                    Container(
-                                      height: 120,
-                                      width: double.infinity,
-                                      decoration: BoxDecoration(
-                                        border: Border.all(color: Colors.grey.shade300),
-                                        borderRadius: BorderRadius.circular(8),
-                                      ),
-                                      child: ClipRRect(
-                                        borderRadius: BorderRadius.circular(8),
-                                        child: Image.file(
-                                          _image!,
-                                          fit: BoxFit.cover,
+                            SizedBox(height: 12),
+                            _image != null
+                                ? Stack(
+                                    children: [
+                                      Container(
+                                        height: 120,
+                                        width: double.infinity,
+                                        decoration: BoxDecoration(
+                                          border: Border.all(color: Colors.grey.shade300),
+                                          borderRadius: BorderRadius.circular(8),
+                                        ),
+                                        child: ClipRRect(
+                                          borderRadius: BorderRadius.circular(8),
+                                          child: Image.file(
+                                            _image!,
+                                            fit: BoxFit.cover,
+                                          ),
                                         ),
                                       ),
-                                    ),
-                                    Positioned(
-                                      top: 8,
-                                      right: 8,
-                                      child: IconButton(
-                                        icon: Icon(Icons.close, color: Colors.white),
-                                        style: IconButton.styleFrom(
-                                          backgroundColor: Colors.black54,
+                                      Positioned(
+                                        top: 8,
+                                        right: 8,
+                                        child: IconButton(
+                                          icon: Icon(Icons.close, color: Colors.white),
+                                          style: IconButton.styleFrom(
+                                            backgroundColor: Colors.black54,
+                                          ),
+                                          onPressed: _removeImage,
                                         ),
-                                        onPressed: () {
-                                          setState(() {
-                                            _image = null;
-                                          });
-                                        },
+                                      ),
+                                    ],
+                                  )
+                                : Container(
+                                    height: 120,
+                                    width: double.infinity,
+                                    decoration: BoxDecoration(
+                                      border: Border.all(color: Colors.grey.shade300),
+                                      borderRadius: BorderRadius.circular(8),
+                                    ),
+                                    child: Center(
+                                      child: Column(
+                                        mainAxisAlignment: MainAxisAlignment.center,
+                                        children: [
+                                          Icon(
+                                            Icons.image,
+                                            size: 32,
+                                            color: Colors.grey.shade400,
+                                          ),
+                                          SizedBox(height: 8),
+                                          Text(
+                                            "No image selected",
+                                            style: TextStyle(
+                                              color: Colors.grey.shade600,
+                                            ),
+                                          ),
+                                        ],
                                       ),
                                     ),
-                                  ],
-                                )
-                              : Container(
+                                  ),
+                          ],
+                          if (_editingIndex != null && (_notes[_editingIndex!]['imageUrl'] != null || _image != null)) ...[
+                            SizedBox(height: 24),
+                            Stack(
+                              children: [
+                                Container(
                                   height: 120,
                                   width: double.infinity,
                                   decoration: BoxDecoration(
                                     border: Border.all(color: Colors.grey.shade300),
                                     borderRadius: BorderRadius.circular(8),
-                                  ),
-                                  child: Center(
-                                    child: Column(
-                                      mainAxisAlignment: MainAxisAlignment.center,
-                                      children: [
-                                        Icon(
-                                          Icons.image,
-                                          size: 32,
-                                          color: Colors.grey.shade400,
-                                        ),
-                                        SizedBox(height: 8),
-                                        Text(
-                                          "No image selected",
-                                          style: TextStyle(
-                                            color: Colors.grey.shade600,
-                                          ),
-                                        ),
-                                      ],
+                                    image: DecorationImage(
+                                      image: _image != null
+                                          ? FileImage(_image!) as ImageProvider
+                                          : NetworkImage(_notes[_editingIndex!]['imageUrl']),
+                                      fit: BoxFit.cover,
                                     ),
                                   ),
                                 ),
+                                Positioned(
+                                  top: 8,
+                                  right: 8,
+                                  child: IconButton(
+                                    icon: Icon(Icons.close, color: Colors.white),
+                                    style: IconButton.styleFrom(
+                                      backgroundColor: Colors.black54,
+                                    ),
+                                    onPressed: _removeImage,
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ],
                           SizedBox(height: 16),
                           Row(
                             mainAxisAlignment: MainAxisAlignment.end,
                             children: [
-                              TextButton.icon(
-                                onPressed: _pickImage,
-                                icon: Icon(Icons.image),
-                                label: Text("Pick Image"),
-                                style: TextButton.styleFrom(
-                                  foregroundColor: Theme.of(context).primaryColor,
+                              if (_editingIndex == null || _notes[_editingIndex!]['imageUrl'] != null || _image != null || _editingIndex != null)
+                                TextButton.icon(
+                                  onPressed: _pickImage,
+                                  icon: Icon(Icons.image),
+                                  label: Text(_editingIndex != null ? "Change Image" : "Pick Image"),
+                                  style: TextButton.styleFrom(
+                                    foregroundColor: Theme.of(context).primaryColor,
+                                  ),
                                 ),
-                              ),
                               SizedBox(width: 16),
                               ElevatedButton.icon(
                                 onPressed: _saveNote,
@@ -872,14 +1002,14 @@ void _resetForm() {
                             children: [
                               if (_filteredNotes[index]['imageUrl'] != null)
                                 Container(
-                            width: 50,
-                            height: 50,
+                                  width: 50,
+                                  height: 50,
                                   margin: EdgeInsets.only(right: 16),
                                   decoration: BoxDecoration(
                                     borderRadius: BorderRadius.circular(8),
                                     image: DecorationImage(
                                       image: NetworkImage(_filteredNotes[index]['imageUrl']),
-                            fit: BoxFit.cover,
+                                      fit: BoxFit.cover,
                                     ),
                                   ),
                                 ),
@@ -912,16 +1042,16 @@ void _resetForm() {
                           SizedBox(height: 8),
                           Row(
                             mainAxisAlignment: MainAxisAlignment.end,
-                      children: [
-                        IconButton(
-                          icon: Icon(Icons.edit, color: Colors.blue),
-                          onPressed: () => _editNote(index),
-                        ),
-                        IconButton(
-                          icon: Icon(Icons.delete, color: Colors.red),
-                          onPressed: () => _deleteNote(index),
-                        ),
-                      ],
+                            children: [
+                              IconButton(
+                                icon: Icon(Icons.edit, color: Colors.blue),
+                                onPressed: () => _editNote(index),
+                              ),
+                              IconButton(
+                                icon: Icon(Icons.delete, color: Colors.red),
+                                onPressed: () => _deleteNote(index),
+                              ),
+                            ],
                           ),
                         ],
                       ),
