@@ -143,7 +143,8 @@ Focuses on the resources related to the programming languages supported by the a
 
 
 ## Project management
-
+### Happiness meter:
+https://docs.google.com/spreadsheets/d/1DvLMehgAnqKXkavAyHksuyxFeBgzGe9lbnDPumnswYg/edit?usp=sharing
 
 ### Sprint 0
 Screenshot of our sprint 0 backlog:
@@ -167,6 +168,18 @@ Screenshot of our backlog at the end of sprint 1:
 
 
 ### Sprint 2
+Screenshot of our backlog at the beggining of sprint 2:
+<img src="/images/BacklogSprint2Beggining.png">
+
+**Sprint Review:**
+In this 2nd sprint we managed to get every single feature accepted.
+Altough we did everything we planned, we think it was not enough for a fast development of the app which will cause future problems on the next sprint planning, with the addition of more work.
+
+**Sprint Retrospective:**
+For the next sprint we will finish the development of the app, so we will add more items than on this one.
+
+Screenshot of our backlog at the beggining of sprint 2:
+<img src="/images/BacklogSprint2End.png">
 
 
 ### Sprint 3
