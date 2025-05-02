@@ -405,29 +405,6 @@ class _CodeSharingPageState extends State<CodeSharingPage> {
                             ),
                           ],
                         ),
-                        Row(
-                          children: [
-                            IconButton(
-                              icon: Icon(
-                                Icons.comment,
-                                color: Colors.grey,
-                                size: 20,
-                              ),
-                              padding: EdgeInsets.zero,
-                              constraints: BoxConstraints(),
-                              onPressed: () {
-                                // TODO: Implement comment functionality
-                              },
-                            ),
-                            Text(
-                              '0',
-                              style: TextStyle(
-                                fontSize: 12,
-                                color: Colors.grey[600],
-                              ),
-                            ),
-                          ],
-                        ),
                       ],
                     ),
                   ),
