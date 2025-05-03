@@ -5,6 +5,8 @@ import 'dart:io';
 import 'package:image_picker/image_picker.dart';
 import 'package:firebase_storage/firebase_storage.dart';
 import 'package:flutter_svg/flutter_svg.dart';
+import 'package:flutter_highlight/flutter_highlight.dart';
+import 'package:flutter_highlight/themes/github.dart';
 
 class LoadingOverlay extends StatelessWidget {
   final bool isLoading;
@@ -321,29 +323,29 @@ class _CodeStoringPageState extends State<CodeStoringPage> with SingleTickerProv
     }
   }
 
-  Future<void> _saveNote() async {
-    final title = _titleController.text.trim();
-    final codeSnippet = _codeController.text.trim();
+Future<void> _saveNote() async {
+  final title = _titleController.text.trim();
+  final codeSnippet = _codeController.text.trim();
 
-    if (title.isEmpty && codeSnippet.isEmpty) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Please add a title or code snippet')),
-      );
-      return;
-    }
+  if (title.isEmpty && codeSnippet.isEmpty) {
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(content: Text('Please add a title or code snippet')),
+    );
+    return;
+  }
 
-    final user = _auth.currentUser;
-    if (user == null) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('You must be logged in to save notes')),
-      );
-      return;
-    }
+  final user = _auth.currentUser;
+  if (user == null) {
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(content: Text('You must be logged in to save notes')),
+    );
+    return;
+  }
 
     setState(() => _isLoading = true);
-    try {
-      String? imageUrl;
-      
+  try {
+    String? imageUrl;
+    
       // Handle image removal during editing
       if (_editingIndex != null && _image != null && _image!.path.isEmpty) {
         // Delete the old image if it exists
@@ -392,7 +394,7 @@ class _CodeStoringPageState extends State<CodeStoringPage> with SingleTickerProv
           final uploadTask = await storageRef.putFile(_image!, metadata);
           
           if (uploadTask.state == TaskState.success) {
-            imageUrl = await storageRef.getDownloadURL();
+      imageUrl = await storageRef.getDownloadURL();
             print('New image uploaded successfully: $imageUrl');
           } else {
             throw Exception('Failed to upload image: ${uploadTask.state}');
@@ -411,17 +413,17 @@ class _CodeStoringPageState extends State<CodeStoringPage> with SingleTickerProv
         }
       }
 
-      if (_editingIndex != null) {
+    if (_editingIndex != null) {
         final noteId = _notes[_editingIndex!]['id'];
-        final currentImageUrl = _notes[_editingIndex!]['imageUrl'];
+      final currentImageUrl = _notes[_editingIndex!]['imageUrl'];
         
         // Update the original note
         await _firestore.collection('notes').doc(noteId).update({
-          'title': title,
-          'code': codeSnippet,
+        'title': title,
+        'code': codeSnippet,
           'imageUrl': imageUrl ?? currentImageUrl, // Keep existing image if no new one is uploaded
-          'updatedAt': FieldValue.serverTimestamp(),
-        });
+        'updatedAt': FieldValue.serverTimestamp(),
+      });
 
         // Find and update any shared versions of this note
         QuerySnapshot sharedNotesSnapshot = await _firestore
@@ -431,22 +433,22 @@ class _CodeStoringPageState extends State<CodeStoringPage> with SingleTickerProv
 
         for (var doc in sharedNotesSnapshot.docs) {
           await doc.reference.update({
-            'title': title,
-            'code': codeSnippet,
+        'title': title,
+        'code': codeSnippet,
             'imageUrl': imageUrl ?? currentImageUrl, // Keep existing image if no new one is uploaded
-            'updatedAt': FieldValue.serverTimestamp(),
-          });
+        'updatedAt': FieldValue.serverTimestamp(),
+      });
         }
-      } else {
+    } else {
         final newNoteRef = await _firestore.collection('notes').add({
-          'userId': user.uid,
+        'userId': user.uid,
           'folderId': _currentFolderId,
-          'title': title,
-          'code': codeSnippet,
-          'imageUrl': imageUrl,
-          'createdAt': FieldValue.serverTimestamp(),
-          'updatedAt': FieldValue.serverTimestamp(),
-        });
+        'title': title,
+        'code': codeSnippet,
+        'imageUrl': imageUrl,
+        'createdAt': FieldValue.serverTimestamp(),
+        'updatedAt': FieldValue.serverTimestamp(),
+      });
 
         // If this note is in a shared folder, create a shared version
         QuerySnapshot sharedFoldersSnapshot = await _firestore
@@ -468,31 +470,31 @@ class _CodeStoringPageState extends State<CodeStoringPage> with SingleTickerProv
         }
       }
 
-      _resetForm();
+    _resetForm();
       if (_currentFolderId != null) {
         await _loadNotes(_currentFolderId!);
       }
       setState(() => _isLoading = false);
-    } catch (e) {
+  } catch (e) {
       setState(() => _isLoading = false);
       print('Error saving note: $e');
-      ScaffoldMessenger.of(context).showSnackBar(
+    ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
           content: Text('Error saving note: ${e.toString()}'),
           backgroundColor: Colors.red,
           duration: Duration(seconds: 5),
         ),
-      );
-    }
+    );
   }
+} 
 
-  void _resetForm() {
-    _titleController.clear();
-    _codeController.clear();
-    _image = null;
-    _isAddingNote = false;
-    _editingIndex = null;
-  }
+void _resetForm() {
+  _titleController.clear();
+  _codeController.clear();
+  _image = null;
+  _isAddingNote = false;
+  _editingIndex = null;
+}
 
   Future<void> _pickImage() async {
     try {
@@ -731,7 +733,7 @@ class _CodeStoringPageState extends State<CodeStoringPage> with SingleTickerProv
             child: Column(
               children: [
                 Row(
-                  children: [
+        children: [
                     Expanded(
                       child: TextField(
                         controller: _folderNameController,
@@ -773,11 +775,11 @@ class _CodeStoringPageState extends State<CodeStoringPage> with SingleTickerProv
               ],
             ),
           ),
-        Expanded(
-          child: ListView.builder(
+          Expanded(
+            child: ListView.builder(
             padding: EdgeInsets.all(16),
             itemCount: _filteredFolders.length,
-            itemBuilder: (context, index) {
+              itemBuilder: (context, index) {
               return Container(
                 height: 70,
                 margin: EdgeInsets.only(bottom: 8),
@@ -806,29 +808,29 @@ class _CodeStoringPageState extends State<CodeStoringPage> with SingleTickerProv
                           ),
                         ),
                         Row(
-                          children: [
-                            IconButton(
+                      children: [
+                        IconButton(
                               icon: Icon(Icons.share, color: Theme.of(context).primaryColor),
                               onPressed: () => _showShareConfirmationDialog(
                                 _filteredFolders[index]['id'],
                                 _filteredFolders[index]['name'],
                                 _filteredFolders[index]['icon'],
                               ),
-                            ),
-                            IconButton(
+                        ),
+                        IconButton(
                               icon: Icon(Icons.delete, color: Colors.red, size: 20),
                               onPressed: () => _deleteFolder(_filteredFolders[index]['id']),
-                            ),
-                          ],
+                        ),
+                      ],
                         ),
                       ],
                     ),
+                    ),
                   ),
-                ),
-              );
-            },
+                );
+              },
+            ),
           ),
-        ),
       ],
     );
   }
@@ -871,11 +873,11 @@ class _CodeStoringPageState extends State<CodeStoringPage> with SingleTickerProv
           ListTile(
             leading: IconButton(
               icon: Icon(Icons.arrow_back),
-              onPressed: () {
-                setState(() {
+                onPressed: () {
+                  setState(() {
                   _selectedNoteIndex = null;
-                });
-              },
+                  });
+                },
             ),
             title: Text(
               _filteredNotes[_selectedNoteIndex!]['title'],
@@ -905,18 +907,7 @@ class _CodeStoringPageState extends State<CodeStoringPage> with SingleTickerProv
                         ),
                       ),
                     ),
-                  Container(
-                    width: double.infinity,
-                    child: SelectableText(
-                      _filteredNotes[_selectedNoteIndex!]['code'],
-                      style: TextStyle(
-                        fontSize: 16,
-                        height: 1.5,
-                        color: Colors.black87,
-                      ),
-                      textAlign: TextAlign.left,
-                    ),
-                  ),
+                  _buildCodeBlock(_filteredNotes[_selectedNoteIndex!]['code']),
                 ],
               ),
             ),
@@ -943,8 +934,8 @@ class _CodeStoringPageState extends State<CodeStoringPage> with SingleTickerProv
             },
           ),
           title: Text(currentFolderName),
-        ),
-        if (_isAddingNote)
+            ),
+          if (_isAddingNote)
           Expanded(
             child: SingleChildScrollView(
               padding: EdgeInsets.all(16),
@@ -974,8 +965,8 @@ class _CodeStoringPageState extends State<CodeStoringPage> with SingleTickerProv
                             ),
                           ),
                           SizedBox(height: 24),
-                          TextField(
-                            controller: _titleController,
+                  TextField(
+                    controller: _titleController,
                             decoration: InputDecoration(
                               labelText: 'Title',
                               hintText: 'Enter a title for your note',
@@ -984,14 +975,17 @@ class _CodeStoringPageState extends State<CodeStoringPage> with SingleTickerProv
                             ),
                           ),
                           SizedBox(height: 16),
-                          TextField(
-                            controller: _codeController,
+                  TextField(
+                    controller: _codeController,
                             decoration: InputDecoration(
                               labelText: 'Code Snippet',
-                              hintText: 'Enter your code here',
+                              hintText: 'Enter your code here. Use --- to create code blocks',
                               border: OutlineInputBorder(),
                               prefixIcon: Icon(Icons.code),
                               alignLabelWithHint: true,
+                            ),
+                            style: TextStyle(
+                              fontSize: 17,
                             ),
                             maxLines: 8,
                           ),
@@ -1005,20 +999,20 @@ class _CodeStoringPageState extends State<CodeStoringPage> with SingleTickerProv
                               ),
                             ),
                             SizedBox(height: 12),
-                            _image != null
+                  _image != null
                                 ? Stack(
                                     children: [
                                       Container(
                                         height: 120,
-                                        width: double.infinity,
-                                        decoration: BoxDecoration(
+                          width: double.infinity,
+                          decoration: BoxDecoration(
                                           border: Border.all(color: Colors.grey.shade300),
                                           borderRadius: BorderRadius.circular(8),
-                                        ),
+                          ),
                                         child: ClipRRect(
                                           borderRadius: BorderRadius.circular(8),
-                                          child: Image.file(
-                                            _image!,
+                          child: Image.file(
+                            _image!,
                                             fit: BoxFit.cover,
                                           ),
                                         ),
@@ -1038,8 +1032,8 @@ class _CodeStoringPageState extends State<CodeStoringPage> with SingleTickerProv
                                   )
                                 : Container(
                                     height: 120,
-                                    width: double.infinity,
-                                    decoration: BoxDecoration(
+                              width: double.infinity,
+                              decoration: BoxDecoration(
                                       border: Border.all(color: Colors.grey.shade300),
                                       borderRadius: BorderRadius.circular(8),
                                     ),
@@ -1099,19 +1093,19 @@ class _CodeStoringPageState extends State<CodeStoringPage> with SingleTickerProv
                           SizedBox(height: 16),
                           Row(
                             mainAxisAlignment: MainAxisAlignment.end,
-                            children: [
+                    children: [
                               if (_editingIndex == null || _notes[_editingIndex!]['imageUrl'] != null || _image != null || _editingIndex != null)
                                 TextButton.icon(
-                                  onPressed: _pickImage,
+                        onPressed: _pickImage,
                                   icon: Icon(Icons.image),
                                   label: Text(_editingIndex != null ? "Change Image" : "Pick Image"),
                                   style: TextButton.styleFrom(
                                     foregroundColor: Theme.of(context).primaryColor,
-                                  ),
+                      ),
                                 ),
                               SizedBox(width: 16),
                               ElevatedButton.icon(
-                                onPressed: _saveNote,
+                        onPressed: _saveNote,
                                 icon: Icon(_editingIndex != null ? Icons.edit : Icons.save),
                                 label: Text(_editingIndex != null ? "Update Note" : "Save Note"),
                                 style: ElevatedButton.styleFrom(
@@ -1122,14 +1116,14 @@ class _CodeStoringPageState extends State<CodeStoringPage> with SingleTickerProv
                                     borderRadius: BorderRadius.circular(8),
                                   ),
                                 ),
-                              ),
-                            ],
-                          ),
-                        ],
                       ),
-                    ),
+                    ],
                   ),
                 ],
+                      ),
+              ),
+            ),
+        ],
               ),
             ),
           ),
@@ -1147,81 +1141,74 @@ class _CodeStoringPageState extends State<CodeStoringPage> with SingleTickerProv
                   )
                 : ListView.builder(
                     itemCount: _filteredNotes.length,
-              itemBuilder: (context, index) {
-                return Card(
-                  margin: EdgeInsets.all(8.0),
-                  child: InkWell(
-                    onTap: () {
-                      setState(() {
-                        _selectedNoteIndex = index;
-                      });
-                    },
-                    child: Padding(
-                      padding: EdgeInsets.all(16.0),
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          Row(
-                            children: [
-                              if (_filteredNotes[index]['imageUrl'] != null)
-                                Container(
-                                  width: 50,
-                                  height: 50,
-                                  margin: EdgeInsets.only(right: 16),
-                                  decoration: BoxDecoration(
-                                    borderRadius: BorderRadius.circular(8),
-                                    image: DecorationImage(
-                                      image: NetworkImage(_filteredNotes[index]['imageUrl']),
-                                      fit: BoxFit.cover,
-                                    ),
-                                  ),
-                                ),
-                              Expanded(
-                                child: Column(
-                                  crossAxisAlignment: CrossAxisAlignment.start,
+                    itemBuilder: (context, index) {
+                      return Card(
+                        margin: EdgeInsets.all(8.0),
+                        child: InkWell(
+                          onTap: () {
+                            setState(() {
+                              _selectedNoteIndex = index;
+                            });
+                          },
+                          child: Padding(
+                            padding: EdgeInsets.all(16.0),
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                Row(
                                   children: [
-                                    Text(
-                                      _filteredNotes[index]['title'],
-                                      style: TextStyle(
-                                        fontSize: 18,
-                                        fontWeight: FontWeight.bold,
-                                        color: Colors.black87,
+                                    if (_filteredNotes[index]['imageUrl'] != null)
+                                      Container(
+                                        width: 50,
+                                        height: 50,
+                                        margin: EdgeInsets.only(right: 16),
+                                        decoration: BoxDecoration(
+                                          borderRadius: BorderRadius.circular(8),
+                                          image: DecorationImage(
+                                            image: NetworkImage(_filteredNotes[index]['imageUrl']),
+                                            fit: BoxFit.cover,
+                                          ),
+                                        ),
                                       ),
-                                    ),
-                                    SizedBox(height: 4),
-                                    Text(
-                                      _filteredNotes[index]['code'],
-                                      maxLines: 2,
-                                      overflow: TextOverflow.ellipsis,
-                                      style: TextStyle(
-                                        color: Colors.black87,
+                                    Expanded(
+                                      child: Column(
+                                        crossAxisAlignment: CrossAxisAlignment.start,
+                                        children: [
+                                          Text(
+                                            _filteredNotes[index]['title'],
+                                            style: TextStyle(
+                                              fontSize: 18,
+                                              fontWeight: FontWeight.bold,
+                                              color: Colors.black87,
+                                            ),
+                                          ),
+                                          SizedBox(height: 4),
+                                          _buildFormattedText(_filteredNotes[index]['code']),
+                                        ],
                                       ),
                                     ),
                                   ],
                                 ),
-                              ),
-                            ],
+                                Row(
+                                  mainAxisAlignment: MainAxisAlignment.end,
+                                  children: [
+                                    IconButton(
+                                      icon: Icon(Icons.edit, color: Colors.blue),
+                                      onPressed: () => _editNote(index),
+                                    ),
+                                    IconButton(
+                                      icon: Icon(Icons.delete, color: Colors.red),
+                                      onPressed: () => _deleteNote(index),
+                                    ),
+                                  ],
+                                ),
+                              ],
+                            ),
                           ),
-                          Row(
-                            mainAxisAlignment: MainAxisAlignment.end,
-                            children: [
-                              IconButton(
-                                icon: Icon(Icons.edit, color: Colors.blue),
-                                onPressed: () => _editNote(index),
-                              ),
-                              IconButton(
-                                icon: Icon(Icons.delete, color: Colors.red),
-                                onPressed: () => _deleteNote(index),
-                              ),
-                            ],
-                          ),
-                        ],
-                      ),
-                    ),
+                        ),
+                      );
+                    },
                   ),
-                );
-              },
-            ),
           ),
       ],
     );
@@ -1309,6 +1296,204 @@ class _CodeStoringPageState extends State<CodeStoringPage> with SingleTickerProv
           height: size, // Variable icon size
         ),
       ),
+    );
+  }
+
+  Widget _buildCodeBlock(String text) {
+    final codeBlocks = text.split('---');
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      mainAxisSize: MainAxisSize.min,
+      children: codeBlocks.asMap().entries.map((entry) {
+        final index = entry.key;
+        final block = entry.value;
+        
+        if (index % 2 == 1) { // This is a code block (odd indices)
+          return Container(
+            width: double.infinity,
+            padding: EdgeInsets.all(8),
+            decoration: BoxDecoration(
+              color: Colors.grey[100],
+              borderRadius: BorderRadius.circular(8),
+              border: Border.all(color: Colors.grey[300]!),
+            ),
+            child: HighlightView(
+              block.trim(),
+              language: 'cpp', // Default to C++ for now
+              theme: githubTheme,
+              padding: EdgeInsets.zero,
+              textStyle: TextStyle(
+                fontFamily: 'monospace',
+                fontSize: 14,
+              ),
+            ),
+          );
+        } else { // This is regular text (even indices)
+          final spans = <TextSpan>[];
+          var currentText = block;
+          
+          // Process bold text
+          while (currentText.contains('**')) {
+            final partsBefore = currentText.split('**');
+            if (partsBefore.length > 1) {
+              spans.add(TextSpan(
+                text: partsBefore[0],
+                style: TextStyle(
+                  fontSize: 16,
+                  height: 1.0,
+                  color: Colors.black87,
+                ),
+              ));
+              spans.add(TextSpan(
+                text: partsBefore[1],
+                style: TextStyle(
+                  fontSize: 16,
+                  height: 1.0,
+                  color: Colors.black87,
+                  fontWeight: FontWeight.bold,
+                ),
+              ));
+              currentText = partsBefore.sublist(2).join('**');
+            } else {
+              break;
+            }
+          }
+          
+          // Process underlined text
+          while (currentText.contains('__')) {
+            final partsBefore = currentText.split('__');
+            if (partsBefore.length > 1) {
+              spans.add(TextSpan(
+                text: partsBefore[0],
+                style: TextStyle(
+                  fontSize: 16,
+                  height: 1.0,
+                  color: Colors.black87,
+                ),
+              ));
+              spans.add(TextSpan(
+                text: partsBefore[1],
+                style: TextStyle(
+                  fontSize: 16,
+                  height: 1.0,
+                  color: Colors.black87,
+                  decoration: TextDecoration.underline,
+                ),
+              ));
+              currentText = partsBefore.sublist(2).join('__');
+            } else {
+              break;
+            }
+          }
+          
+          // Add any remaining text
+          if (currentText.isNotEmpty) {
+            spans.add(TextSpan(
+              text: currentText,
+              style: TextStyle(
+                fontSize: 16,
+                height: 1.0,
+                color: Colors.black87,
+              ),
+            ));
+          }
+          
+          return SelectableText.rich(
+            TextSpan(children: spans),
+            style: TextStyle(
+              fontSize: 16,
+              height: 1.0,
+              color: Colors.black87,
+            ),
+          );
+        }
+      }).toList(),
+    );
+  }
+
+  Widget _buildFormattedText(String text) {
+    final spans = <TextSpan>[];
+    var currentText = text;
+    
+    // Split text into lines and filter out empty ones
+    final lines = currentText.split('\n').where((line) => line.trim().isNotEmpty).toList();
+    currentText = lines.join('\n');
+    
+    // Process bold text
+    while (currentText.contains('**')) {
+      final partsBefore = currentText.split('**');
+      if (partsBefore.length > 1) {
+        spans.add(TextSpan(
+          text: partsBefore[0],
+          style: TextStyle(
+            fontSize: 16,
+            height: 1.0,
+            color: Colors.black87,
+          ),
+        ));
+        spans.add(TextSpan(
+          text: partsBefore[1],
+          style: TextStyle(
+            fontSize: 16,
+            height: 1.0,
+            color: Colors.black87,
+            fontWeight: FontWeight.bold,
+          ),
+        ));
+        currentText = partsBefore.sublist(2).join('**');
+      } else {
+        break;
+      }
+    }
+    
+    // Process underlined text
+    while (currentText.contains('__')) {
+      final partsBefore = currentText.split('__');
+      if (partsBefore.length > 1) {
+        spans.add(TextSpan(
+          text: partsBefore[0],
+          style: TextStyle(
+            fontSize: 16,
+            height: 1.0,
+            color: Colors.black87,
+          ),
+        ));
+        spans.add(TextSpan(
+          text: partsBefore[1],
+          style: TextStyle(
+            fontSize: 16,
+            height: 1.0,
+            color: Colors.black87,
+            decoration: TextDecoration.underline,
+          ),
+        ));
+        currentText = partsBefore.sublist(2).join('__');
+      } else {
+        break;
+      }
+    }
+    
+    // Add any remaining text
+    if (currentText.isNotEmpty) {
+      spans.add(TextSpan(
+        text: currentText,
+        style: TextStyle(
+          fontSize: 16,
+          height: 1.0,
+          color: Colors.black87,
+        ),
+      ));
+    }
+    
+    return Text.rich(
+      TextSpan(children: spans),
+      style: TextStyle(
+        fontSize: 16,
+        height: 1.0,
+        color: Colors.black87,
+      ),
+      maxLines: 2,
+      overflow: TextOverflow.ellipsis,
     );
   }
 }
