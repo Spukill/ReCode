@@ -152,15 +152,15 @@ class _CodeSharingPageState extends State<CodeSharingPage> {
       QuerySnapshot snapshot = await _firestore
           .collection('sharedNotes')
           .where('sharedFolderId', isEqualTo: folderId)
-          .get();
+        .get();
 
-      setState(() {
+    setState(() {
         _folderNotes = snapshot.docs.map((doc) {
           return {
-            'id': doc.id,
-            'title': doc['title'],
-            'code': doc['code'],
-            'imageUrl': doc['imageUrl'],
+        'id': doc.id,
+        'title': doc['title'],
+        'code': doc['code'],
+        'imageUrl': doc['imageUrl'],
             'ownerName': doc['ownerName'],
           };
         }).toList();
@@ -263,11 +263,11 @@ class _CodeSharingPageState extends State<CodeSharingPage> {
       appBar: AppBar(
         title: Padding(
           padding: EdgeInsets.only(top: 8.0),
-          child: TextField(
-            controller: _searchController,
-            decoration: InputDecoration(
+            child: TextField(
+              controller: _searchController,
+              decoration: InputDecoration(
               hintText: _selectedFolderId == null ? 'Search shared folders...' : 'Search notes...',
-              prefixIcon: Icon(Icons.search),
+                prefixIcon: Icon(Icons.search),
               border: OutlineInputBorder(
                 borderRadius: BorderRadius.circular(8.0),
                 borderSide: BorderSide.none,
@@ -291,7 +291,7 @@ class _CodeSharingPageState extends State<CodeSharingPage> {
     return ListView.builder(
       padding: EdgeInsets.all(16),
       itemCount: _filteredFolders.length,
-      itemBuilder: (context, index) {
+              itemBuilder: (context, index) {
         final folder = _filteredFolders[index];
         final isLiked = folder['likedBy']?.contains(_auth.currentUser?.uid) ?? false;
         final isAnimating = _likingStates[folder['id']] ?? false;
@@ -332,7 +332,7 @@ class _CodeSharingPageState extends State<CodeSharingPage> {
                               ),
                             ),
                             if (isOwner)
-                              IconButton(
+                        IconButton(
                                 icon: Icon(Icons.stop_circle, color: Colors.red),
                                 onPressed: () {
                                   showDialog(
@@ -371,11 +371,11 @@ class _CodeSharingPageState extends State<CodeSharingPage> {
                   ),
                   Padding(
                     padding: EdgeInsets.only(right: 8),
-                    child: Column(
+                            child: Column(
                       mainAxisAlignment: MainAxisAlignment.center,
                       children: [
                         Row(
-                          children: [
+                              children: [
                             AnimatedSwitcher(
                               duration: Duration(milliseconds: 300),
                               transitionBuilder: (child, animation) {
@@ -398,29 +398,6 @@ class _CodeSharingPageState extends State<CodeSharingPage> {
                             ),
                             Text(
                               '${folder['likes'] ?? 0}',
-                              style: TextStyle(
-                                fontSize: 12,
-                                color: Colors.grey[600],
-                              ),
-                            ),
-                          ],
-                        ),
-                        Row(
-                          children: [
-                            IconButton(
-                              icon: Icon(
-                                Icons.comment,
-                                color: Colors.grey,
-                                size: 20,
-                              ),
-                              padding: EdgeInsets.zero,
-                              constraints: BoxConstraints(),
-                              onPressed: () {
-                                // TODO: Implement comment functionality
-                              },
-                            ),
-                            Text(
-                              '0',
                               style: TextStyle(
                                 fontSize: 12,
                                 color: Colors.grey[600],
