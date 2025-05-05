@@ -4,6 +4,7 @@ import 'package:flutter_svg/flutter_svg.dart';
 import 'login_screen.dart';
 import 'code_storing.dart';
 import 'community_page.dart';
+import 'community_qa_page.dart';
 
 class BottomNavigation extends StatefulWidget {
   @override
@@ -15,7 +16,7 @@ class _BottomNavigationState extends State<BottomNavigation> {
   final List<Widget> _screens = [
     CodeStoringPage(),
     CodeSharingPage(),
-    PlaceholderScreen(title: 'Questions and Answers'),
+    CommunityQAPage(),
   ];
 
   Future<void> _showLogoutConfirmation() async {
