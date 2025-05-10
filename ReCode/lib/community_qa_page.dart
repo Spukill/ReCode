@@ -14,6 +14,55 @@ class _CommunityQAPageState extends State<CommunityQAPage> {
   final FirebaseAuth _auth = FirebaseAuth.instance;
   bool _isLoading = false;
 
+  Future<void> _deleteQuestion(String questionId) async {
+    final user = _auth.currentUser;
+    if (user == null) return;
+
+    try {
+      await _firestore.collection('questions').doc(questionId).delete();
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('Question deleted successfully'),
+          backgroundColor: Colors.green,
+        ),
+      );
+    } catch (e) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('Error deleting question: $e'),
+          backgroundColor: Colors.red,
+        ),
+      );
+    }
+  }
+
+  Future<void> _showDeleteConfirmation(String questionId) async {
+    return showDialog(
+      context: context,
+      builder: (BuildContext context) {
+        return AlertDialog(
+          title: Text('Delete Question'),
+          content: Text('Are you sure you want to delete this question? This action cannot be undone.'),
+          actions: <Widget>[
+            TextButton(
+              child: Text('Cancel'),
+              onPressed: () {
+                Navigator.of(context).pop();
+              },
+            ),
+            TextButton(
+              child: Text('Delete', style: TextStyle(color: Colors.red)),
+              onPressed: () {
+                Navigator.of(context).pop();
+                _deleteQuestion(questionId);
+              },
+            ),
+          ],
+        );
+      },
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -149,19 +198,40 @@ class _CommunityQAPageState extends State<CommunityQAPage> {
 
     setState(() => _isLoading = true);
     try {
-      await _firestore.collection('questions').doc(questionId).update({
-        'answers': FieldValue.arrayUnion([
-          {
-            'text': _answerController.text.trim(),
-            'userId': user.uid,
-            'userName': user.displayName ?? 'Anonymous',
-            'timestamp': FieldValue.serverTimestamp(),
-          }
-        ]),
+      // First get the current question document
+      final questionDoc = await _firestore.collection('questions').doc(questionId).get();
+      if (!questionDoc.exists) {
+        throw Exception('Question not found');
+      }
+
+      // Get current answers array
+      final currentAnswers = List<Map<String, dynamic>>.from(questionDoc.data()?['answers'] ?? []);
+      
+      // Add new answer with current timestamp
+      currentAnswers.add({
+        'text': _answerController.text.trim(),
+        'userId': user.uid,
+        'userName': user.displayName ?? 'Anonymous',
+        'timestamp': Timestamp.fromDate(DateTime.now()),
       });
+
+      // Update the document with the new answers array
+      await _firestore.collection('questions').doc(questionId).update({
+        'answers': currentAnswers,
+      });
+
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('Answer posted successfully'),
+          backgroundColor: Colors.green,
+        ),
+      );
     } catch (e) {
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Error posting answer: $e')),
+        SnackBar(
+          content: Text('Error posting answer: $e'),
+          backgroundColor: Colors.red,
+        ),
       );
     } finally {
       setState(() => _isLoading = false);
@@ -183,6 +253,8 @@ class QuestionCard extends StatelessWidget {
   Widget build(BuildContext context) {
     final data = question.data() as Map<String, dynamic>;
     final answers = List<Map<String, dynamic>>.from(data['answers'] ?? []);
+    final currentUser = FirebaseAuth.instance.currentUser;
+    final isQuestionOwner = currentUser?.uid == data['userId'];
 
     return Card(
       margin: EdgeInsets.all(8),
@@ -202,6 +274,54 @@ class QuestionCard extends StatelessWidget {
                   style: TextStyle(fontWeight: FontWeight.bold),
                 ),
                 Spacer(),
+                if (isQuestionOwner)
+                  IconButton(
+                    icon: Icon(Icons.delete, color: Colors.red),
+                    onPressed: () {
+                      showDialog(
+                        context: context,
+                        builder: (BuildContext context) {
+                          return AlertDialog(
+                            title: Text('Delete Question'),
+                            content: Text('Are you sure you want to delete this question? This action cannot be undone.'),
+                            actions: <Widget>[
+                              TextButton(
+                                child: Text('Cancel'),
+                                onPressed: () {
+                                  Navigator.of(context).pop();
+                                },
+                              ),
+                              TextButton(
+                                child: Text('Delete', style: TextStyle(color: Colors.red)),
+                                onPressed: () {
+                                  Navigator.of(context).pop();
+                                  FirebaseFirestore.instance
+                                      .collection('questions')
+                                      .doc(question.id)
+                                      .delete()
+                                      .then((_) {
+                                    ScaffoldMessenger.of(context).showSnackBar(
+                                      SnackBar(
+                                        content: Text('Question deleted successfully'),
+                                        backgroundColor: Colors.green,
+                                      ),
+                                    );
+                                  }).catchError((error) {
+                                    ScaffoldMessenger.of(context).showSnackBar(
+                                      SnackBar(
+                                        content: Text('Error deleting question: $error'),
+                                        backgroundColor: Colors.red,
+                                      ),
+                                    );
+                                  });
+                                },
+                              ),
+                            ],
+                          );
+                        },
+                      );
+                    },
+                  ),
                 Text(
                   _formatTimestamp(data['timestamp']),
                   style: TextStyle(color: Colors.grey),
