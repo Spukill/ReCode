@@ -13,6 +13,71 @@ class _CommunityQAPageState extends State<CommunityQAPage> {
   final FirebaseFirestore _firestore = FirebaseFirestore.instance;
   final FirebaseAuth _auth = FirebaseAuth.instance;
   bool _isLoading = false;
+  bool _hasMoreQuestions = true;
+  DocumentSnapshot? _lastDocument;
+  static const int _questionsPerPage = 5;
+  List<DocumentSnapshot> _questions = [];
+
+  @override
+  void initState() {
+    super.initState();
+    _loadInitialQuestions();
+  }
+
+  Future<void> _loadInitialQuestions() async {
+    setState(() => _isLoading = true);
+    try {
+      final querySnapshot = await _firestore
+          .collection('questions')
+          .orderBy('timestamp', descending: true)
+          .limit(_questionsPerPage)
+          .get();
+
+      setState(() {
+        _questions = querySnapshot.docs;
+        _lastDocument = querySnapshot.docs.isNotEmpty ? querySnapshot.docs.last : null;
+        _hasMoreQuestions = querySnapshot.docs.length == _questionsPerPage;
+        _isLoading = false;
+      });
+    } catch (e) {
+      setState(() => _isLoading = false);
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('Error loading questions: $e'),
+          backgroundColor: Colors.red,
+        ),
+      );
+    }
+  }
+
+  Future<void> _loadMoreQuestions() async {
+    if (!_hasMoreQuestions || _isLoading || _lastDocument == null) return;
+
+    setState(() => _isLoading = true);
+    try {
+      final querySnapshot = await _firestore
+          .collection('questions')
+          .orderBy('timestamp', descending: true)
+          .startAfterDocument(_lastDocument!)
+          .limit(_questionsPerPage)
+          .get();
+
+      setState(() {
+        _questions.addAll(querySnapshot.docs);
+        _lastDocument = querySnapshot.docs.isNotEmpty ? querySnapshot.docs.last : null;
+        _hasMoreQuestions = querySnapshot.docs.length == _questionsPerPage;
+        _isLoading = false;
+      });
+    } catch (e) {
+      setState(() => _isLoading = false);
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('Error loading more questions: $e'),
+          backgroundColor: Colors.red,
+        ),
+      );
+    }
+  }
 
   Future<void> _deleteQuestion(String questionId) async {
     final user = _auth.currentUser;
@@ -75,31 +140,46 @@ class _CommunityQAPageState extends State<CommunityQAPage> {
           ),
         ],
       ),
-      body: StreamBuilder<QuerySnapshot>(
-        stream: _firestore
-            .collection('questions')
-            .orderBy('timestamp', descending: true)
-            .snapshots(),
-        builder: (context, snapshot) {
-          if (snapshot.hasError) {
-            return Center(child: Text('Error: ${snapshot.error}'));
-          }
-
-          if (snapshot.connectionState == ConnectionState.waiting) {
-            return Center(child: CircularProgressIndicator());
-          }
-
-          return ListView.builder(
-            itemCount: snapshot.data!.docs.length,
-            itemBuilder: (context, index) {
-              var question = snapshot.data!.docs[index];
-              return QuestionCard(
-                question: question,
-                onAnswer: () => _showAnswerDialog(context, question.id),
-              );
-            },
-          );
+      body: RefreshIndicator(
+        onRefresh: () async {
+          await _loadInitialQuestions();
         },
+        child: _questions.isEmpty && !_isLoading
+            ? Center(
+                child: Text(
+                  'No questions yet. Be the first to ask!',
+                  style: TextStyle(fontSize: 16, color: Colors.grey),
+                ),
+              )
+            : ListView.builder(
+                itemCount: _questions.length + (_hasMoreQuestions ? 1 : 0),
+                itemBuilder: (context, index) {
+                  if (index == _questions.length) {
+                    return _buildLoadMoreButton();
+                  }
+                  return QuestionCard(
+                    question: _questions[index],
+                    onAnswer: () => _showAnswerDialog(context, _questions[index].id),
+                  );
+                },
+              ),
+      ),
+    );
+  }
+
+  Widget _buildLoadMoreButton() {
+    return Padding(
+      padding: EdgeInsets.all(16),
+      child: Center(
+        child: _isLoading
+            ? CircularProgressIndicator()
+            : ElevatedButton(
+                onPressed: _loadMoreQuestions,
+                child: Text('Load More Questions'),
+                style: ElevatedButton.styleFrom(
+                  padding: EdgeInsets.symmetric(horizontal: 32, vertical: 12),
+                ),
+              ),
       ),
     );
   }
@@ -249,12 +329,18 @@ class QuestionCard extends StatelessWidget {
     required this.onAnswer,
   }) : super(key: key);
 
+  String _getInitials(String name) {
+    if (name.isEmpty) return '?';
+    return name[0].toUpperCase();
+  }
+
   @override
   Widget build(BuildContext context) {
     final data = question.data() as Map<String, dynamic>;
     final answers = List<Map<String, dynamic>>.from(data['answers'] ?? []);
     final currentUser = FirebaseAuth.instance.currentUser;
     final isQuestionOwner = currentUser?.uid == data['userId'];
+    final userName = data['userName'] as String? ?? 'Anonymous';
 
     return Card(
       margin: EdgeInsets.all(8),
@@ -266,11 +352,11 @@ class QuestionCard extends StatelessWidget {
             Row(
               children: [
                 CircleAvatar(
-                  child: Text(data['userName'][0].toUpperCase()),
+                  child: Text(_getInitials(userName)),
                 ),
                 SizedBox(width: 8),
                 Text(
-                  data['userName'],
+                  userName,
                   style: TextStyle(fontWeight: FontWeight.bold),
                 ),
                 Spacer(),
@@ -330,7 +416,7 @@ class QuestionCard extends StatelessWidget {
             ),
             SizedBox(height: 8),
             Text(
-              data['text'],
+              data['text'] ?? '',
               style: TextStyle(fontSize: 16),
             ),
             SizedBox(height: 16),
@@ -356,6 +442,7 @@ class QuestionCard extends StatelessWidget {
                 itemCount: answers.length,
                 itemBuilder: (context, index) {
                   final answer = answers[index];
+                  final answerUserName = answer['userName'] as String? ?? 'Anonymous';
                   return Padding(
                     padding: EdgeInsets.symmetric(vertical: 8),
                     child: Column(
@@ -365,11 +452,11 @@ class QuestionCard extends StatelessWidget {
                           children: [
                             CircleAvatar(
                               radius: 12,
-                              child: Text(answer['userName'][0].toUpperCase()),
+                              child: Text(_getInitials(answerUserName)),
                             ),
                             SizedBox(width: 8),
                             Text(
-                              answer['userName'],
+                              answerUserName,
                               style: TextStyle(fontWeight: FontWeight.bold),
                             ),
                             Spacer(),
@@ -380,7 +467,7 @@ class QuestionCard extends StatelessWidget {
                           ],
                         ),
                         SizedBox(height: 4),
-                        Text(answer['text']),
+                        Text(answer['text'] ?? ''),
                       ],
                     ),
                   );
@@ -395,7 +482,11 @@ class QuestionCard extends StatelessWidget {
 
   String _formatTimestamp(dynamic timestamp) {
     if (timestamp == null) return '';
-    final date = (timestamp as Timestamp).toDate();
-    return '${date.day}/${date.month}/${date.year}';
+    try {
+      final date = (timestamp as Timestamp).toDate();
+      return '${date.day}/${date.month}/${date.year}';
+    } catch (e) {
+      return '';
+    }
   }
 } 

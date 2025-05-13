@@ -102,7 +102,7 @@ class _CodeStoringPageState extends State<CodeStoringPage> with SingleTickerProv
 
   Future<void> _loadFolders() async {
     if (!mounted) return;
-    
+
     setState(() => _isLoading = true);
     User? user = _auth.currentUser;
     if (user != null) {
@@ -111,7 +111,7 @@ class _CodeStoringPageState extends State<CodeStoringPage> with SingleTickerProv
             .collection('folders')
             .where('userId', isEqualTo: user.uid)
             .get();
-        
+
         List<Map<String, dynamic>> sortedFolders = snapshot.docs.map((doc) {
           dynamic iconData = doc['icon'];
           String icon;
@@ -128,9 +128,9 @@ class _CodeStoringPageState extends State<CodeStoringPage> with SingleTickerProv
             'createdAt': doc['createdAt']?.toDate() ?? DateTime.now(),
           };
         }).toList();
-        
+
         sortedFolders.sort((a, b) => (a['createdAt'] as DateTime).compareTo(b['createdAt'] as DateTime));
-        
+
         if (mounted) {
           setState(() {
             _folders = sortedFolders;
@@ -323,29 +323,29 @@ class _CodeStoringPageState extends State<CodeStoringPage> with SingleTickerProv
     }
   }
 
-Future<void> _saveNote() async {
-  final title = _titleController.text.trim();
-  final codeSnippet = _codeController.text.trim();
+  Future<void> _saveNote() async {
+    final title = _titleController.text.trim();
+    final codeSnippet = _codeController.text.trim();
 
-  if (title.isEmpty && codeSnippet.isEmpty) {
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(content: Text('Please add a title or code snippet')),
-    );
-    return;
-  }
+    if (title.isEmpty && codeSnippet.isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Please add a title or code snippet')),
+      );
+      return;
+    }
 
-  final user = _auth.currentUser;
-  if (user == null) {
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(content: Text('You must be logged in to save notes')),
-    );
-    return;
-  }
+    final user = _auth.currentUser;
+    if (user == null) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('You must be logged in to save notes')),
+      );
+      return;
+    }
 
     setState(() => _isLoading = true);
-  try {
-    String? imageUrl;
-    
+    try {
+      String? imageUrl;
+
       // Handle image removal during editing
       if (_editingIndex != null && _image != null && _image!.path.isEmpty) {
         // Delete the old image if it exists
@@ -380,9 +380,9 @@ Future<void> _saveNote() async {
           final timestamp = DateTime.now().millisecondsSinceEpoch;
           final fileExtension = _image!.path.split('.').last;
           final fileName = '${user.uid}_$timestamp.$fileExtension';
-          
+
           final storageRef = _storage.ref().child('note_images').child(fileName);
-          
+
           final metadata = SettableMetadata(
             contentType: 'image/$fileExtension',
             customMetadata: {
@@ -390,11 +390,11 @@ Future<void> _saveNote() async {
               'timestamp': timestamp.toString(),
             },
           );
-          
+
           final uploadTask = await storageRef.putFile(_image!, metadata);
-          
+
           if (uploadTask.state == TaskState.success) {
-      imageUrl = await storageRef.getDownloadURL();
+            imageUrl = await storageRef.getDownloadURL();
             print('New image uploaded successfully: $imageUrl');
           } else {
             throw Exception('Failed to upload image: ${uploadTask.state}');
@@ -413,17 +413,17 @@ Future<void> _saveNote() async {
         }
       }
 
-    if (_editingIndex != null) {
+      if (_editingIndex != null) {
         final noteId = _notes[_editingIndex!]['id'];
-      final currentImageUrl = _notes[_editingIndex!]['imageUrl'];
-        
+        final currentImageUrl = _notes[_editingIndex!]['imageUrl'];
+
         // Update the original note
         await _firestore.collection('notes').doc(noteId).update({
-        'title': title,
-        'code': codeSnippet,
+          'title': title,
+          'code': codeSnippet,
           'imageUrl': imageUrl ?? currentImageUrl, // Keep existing image if no new one is uploaded
-        'updatedAt': FieldValue.serverTimestamp(),
-      });
+          'updatedAt': FieldValue.serverTimestamp(),
+        });
 
         // Find and update any shared versions of this note
         QuerySnapshot sharedNotesSnapshot = await _firestore
@@ -433,22 +433,22 @@ Future<void> _saveNote() async {
 
         for (var doc in sharedNotesSnapshot.docs) {
           await doc.reference.update({
-        'title': title,
-        'code': codeSnippet,
+            'title': title,
+            'code': codeSnippet,
             'imageUrl': imageUrl ?? currentImageUrl, // Keep existing image if no new one is uploaded
-        'updatedAt': FieldValue.serverTimestamp(),
-      });
+            'updatedAt': FieldValue.serverTimestamp(),
+          });
         }
-    } else {
+      } else {
         final newNoteRef = await _firestore.collection('notes').add({
-        'userId': user.uid,
+          'userId': user.uid,
           'folderId': _currentFolderId,
-        'title': title,
-        'code': codeSnippet,
-        'imageUrl': imageUrl,
-        'createdAt': FieldValue.serverTimestamp(),
-        'updatedAt': FieldValue.serverTimestamp(),
-      });
+          'title': title,
+          'code': codeSnippet,
+          'imageUrl': imageUrl,
+          'createdAt': FieldValue.serverTimestamp(),
+          'updatedAt': FieldValue.serverTimestamp(),
+        });
 
         // If this note is in a shared folder, create a shared version
         QuerySnapshot sharedFoldersSnapshot = await _firestore
@@ -470,31 +470,31 @@ Future<void> _saveNote() async {
         }
       }
 
-    _resetForm();
+      _resetForm();
       if (_currentFolderId != null) {
         await _loadNotes(_currentFolderId!);
       }
       setState(() => _isLoading = false);
-  } catch (e) {
+    } catch (e) {
       setState(() => _isLoading = false);
       print('Error saving note: $e');
-    ScaffoldMessenger.of(context).showSnackBar(
+      ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
           content: Text('Error saving note: ${e.toString()}'),
           backgroundColor: Colors.red,
           duration: Duration(seconds: 5),
         ),
-    );
+      );
+    }
   }
-} 
 
-void _resetForm() {
-  _titleController.clear();
-  _codeController.clear();
-  _image = null;
-  _isAddingNote = false;
-  _editingIndex = null;
-}
+  void _resetForm() {
+    _titleController.clear();
+    _codeController.clear();
+    _image = null;
+    _isAddingNote = false;
+    _editingIndex = null;
+  }
 
   Future<void> _pickImage() async {
     try {
@@ -502,11 +502,11 @@ void _resetForm() {
         source: ImageSource.gallery,
         imageQuality: 80,
       );
-      
+
       if (pickedFile != null) {
-          setState(() {
-            _image = File(pickedFile.path);
-          });
+        setState(() {
+          _image = File(pickedFile.path);
+        });
       }
     } catch (e) {
       ScaffoldMessenger.of(context).showSnackBar(
@@ -541,15 +541,15 @@ void _resetForm() {
     try {
       await _firestore.collection('notes').doc(_notes[index]['id']).delete();
       print('Note deleted from Firestore');
-      
+
       if (_notes[index]['imageUrl'] != null) {
         final imageUrl = _notes[index]['imageUrl'];
         try {
           print('Attempting to delete image: $imageUrl');
-          
+
           final storageRef = _storage.refFromURL(imageUrl);
           print('Got storage reference');
-          
+
           await storageRef.delete();
           print('Image deleted successfully');
         } catch (e) {
@@ -558,10 +558,10 @@ void _resetForm() {
             final uri = Uri.parse(imageUrl);
             final path = uri.path.split('/o/')[1].split('?')[0];
             print('Extracted path: $path');
-            
+
             final storageRef = _storage.ref().child(path);
             print('Created storage reference');
-            
+
             await storageRef.delete();
             print('Image deleted successfully using alternative method');
           } catch (e2) {
@@ -576,7 +576,7 @@ void _resetForm() {
           }
         }
       }
-      
+
       setState(() {
         _notes.removeAt(index);
         _isLoading = false;
@@ -602,7 +602,7 @@ void _resetForm() {
           .collection('notes')
           .where('folderId', isEqualTo: folderId)
           .get();
-      
+
       for (var doc in notesSnapshot.docs) {
         if (doc['imageUrl'] != null) {
           await _storage.refFromURL(doc['imageUrl']).delete();
@@ -611,7 +611,7 @@ void _resetForm() {
       }
 
       await _firestore.collection('folders').doc(folderId).delete();
-      
+
       setState(() {
         _folders.removeWhere((folder) => folder['id'] == folderId);
         if (_currentFolderId == folderId) {
@@ -642,8 +642,8 @@ void _resetForm() {
     if (_searchController.text.isEmpty) {
       return _folders;
     }
-    return _folders.where((folder) => 
-      folder['name'].toLowerCase().contains(_searchController.text.toLowerCase())
+    return _folders.where((folder) =>
+        folder['name'].toLowerCase().contains(_searchController.text.toLowerCase())
     ).toList();
   }
 
@@ -651,9 +651,9 @@ void _resetForm() {
     if (_searchController.text.isEmpty) {
       return _notes;
     }
-    return _notes.where((note) => 
-      (note['title']?.toLowerCase().contains(_searchController.text.toLowerCase()) ?? false) ||
-      (note['code']?.toLowerCase().contains(_searchController.text.toLowerCase()) ?? false)
+    return _notes.where((note) =>
+    (note['title']?.toLowerCase().contains(_searchController.text.toLowerCase()) ?? false) ||
+        (note['code']?.toLowerCase().contains(_searchController.text.toLowerCase()) ?? false)
     ).toList();
   }
 
@@ -667,28 +667,28 @@ void _resetForm() {
             padding: EdgeInsets.only(top: 8.0),
             child: _selectedNoteIndex != null && !_isAddingNote
                 ? Text(
-                    'Note Details',
-                    style: TextStyle(
-                      fontSize: 20,
-                      fontWeight: FontWeight.bold,
-                    ),
-                  )
+              'Note Details',
+              style: TextStyle(
+                fontSize: 20,
+                fontWeight: FontWeight.bold,
+              ),
+            )
                 : TextField(
-                    controller: _searchController,
-                    decoration: InputDecoration(
-                      hintText: _currentFolderId == null ? 'Search folders...' : 'Search notes...',
-                      prefixIcon: Icon(Icons.search),
-                      border: OutlineInputBorder(
-                        borderRadius: BorderRadius.circular(8.0),
-                        borderSide: BorderSide.none,
-                      ),
-                      filled: true,
-                      fillColor: Colors.white,
-                    ),
-                    onChanged: (value) {
-                      setState(() {}); // Rebuild the UI when search text changes
-                    },
-                  ),
+              controller: _searchController,
+              decoration: InputDecoration(
+                hintText: _currentFolderId == null ? 'Search folders...' : 'Search notes...',
+                prefixIcon: Icon(Icons.search),
+                border: OutlineInputBorder(
+                  borderRadius: BorderRadius.circular(8.0),
+                  borderSide: BorderSide.none,
+                ),
+                filled: true,
+                fillColor: Colors.white,
+              ),
+              onChanged: (value) {
+                setState(() {}); // Rebuild the UI when search text changes
+              },
+            ),
           ),
         ),
         body: _currentFolderId == null ? _buildFoldersView() : _buildNotesView(),
@@ -713,9 +713,9 @@ void _resetForm() {
             builder: (context, child) {
               return Transform.rotate(
                 angle: (_rotationAnimation.value * 3.14159) + (3.14159 / 2),
-                child: Icon(_currentFolderId == null 
-                  ? (_isAddingFolder ? Icons.remove : Icons.add)
-                  : Icons.add),
+                child: Icon(_currentFolderId == null
+                    ? (_isAddingFolder ? Icons.remove : Icons.add)
+                    : Icons.add),
               );
             },
           ),
@@ -733,7 +733,7 @@ void _resetForm() {
             child: Column(
               children: [
                 Row(
-        children: [
+                  children: [
                     Expanded(
                       child: TextField(
                         controller: _folderNameController,
@@ -775,11 +775,11 @@ void _resetForm() {
               ],
             ),
           ),
-          Expanded(
-            child: ListView.builder(
+        Expanded(
+          child: ListView.builder(
             padding: EdgeInsets.all(16),
             itemCount: _filteredFolders.length,
-              itemBuilder: (context, index) {
+            itemBuilder: (context, index) {
               return Container(
                 height: 70,
                 margin: EdgeInsets.only(bottom: 8),
@@ -808,29 +808,29 @@ void _resetForm() {
                           ),
                         ),
                         Row(
-                      children: [
-                        IconButton(
+                          children: [
+                            IconButton(
                               icon: Icon(Icons.share, color: Theme.of(context).primaryColor),
                               onPressed: () => _showShareConfirmationDialog(
                                 _filteredFolders[index]['id'],
                                 _filteredFolders[index]['name'],
                                 _filteredFolders[index]['icon'],
                               ),
-                        ),
-                        IconButton(
+                            ),
+                            IconButton(
                               icon: Icon(Icons.delete, color: Colors.red, size: 20),
                               onPressed: () => _deleteFolder(_filteredFolders[index]['id']),
+                            ),
+                          ],
                         ),
                       ],
-                        ),
-                      ],
-                    ),
                     ),
                   ),
-                );
-              },
-            ),
+                ),
+              );
+            },
           ),
+        ),
       ],
     );
   }
@@ -865,7 +865,7 @@ void _resetForm() {
   Widget _buildNotesView() {
     String currentFolderName = _folders
         .firstWhere((folder) => folder['id'] == _currentFolderId,
-            orElse: () => {'name': 'Unknown Folder'})['name'];
+        orElse: () => {'name': 'Unknown Folder'})['name'];
 
     if (_selectedNoteIndex != null && !_isAddingNote) {
       return Column(
@@ -873,11 +873,11 @@ void _resetForm() {
           ListTile(
             leading: IconButton(
               icon: Icon(Icons.arrow_back),
-                onPressed: () {
-                  setState(() {
+              onPressed: () {
+                setState(() {
                   _selectedNoteIndex = null;
-                  });
-                },
+                });
+              },
             ),
             title: Text(
               _filteredNotes[_selectedNoteIndex!]['title'],
@@ -934,8 +934,8 @@ void _resetForm() {
             },
           ),
           title: Text(currentFolderName),
-            ),
-          if (_isAddingNote)
+        ),
+        if (_isAddingNote)
           Expanded(
             child: SingleChildScrollView(
               padding: EdgeInsets.all(16),
@@ -965,8 +965,8 @@ void _resetForm() {
                             ),
                           ),
                           SizedBox(height: 24),
-                  TextField(
-                    controller: _titleController,
+                          TextField(
+                            controller: _titleController,
                             decoration: InputDecoration(
                               labelText: 'Title',
                               hintText: 'Enter a title for your note',
@@ -975,8 +975,8 @@ void _resetForm() {
                             ),
                           ),
                           SizedBox(height: 16),
-                  TextField(
-                    controller: _codeController,
+                          TextField(
+                            controller: _codeController,
                             decoration: InputDecoration(
                               labelText: 'Code Snippet',
                               hintText: 'Enter your code here. Use --- to create code blocks',
@@ -999,64 +999,64 @@ void _resetForm() {
                               ),
                             ),
                             SizedBox(height: 12),
-                  _image != null
+                            _image != null
                                 ? Stack(
-                                    children: [
-                                      Container(
-                                        height: 120,
-                          width: double.infinity,
-                          decoration: BoxDecoration(
-                                          border: Border.all(color: Colors.grey.shade300),
-                                          borderRadius: BorderRadius.circular(8),
-                          ),
-                                        child: ClipRRect(
-                                          borderRadius: BorderRadius.circular(8),
-                          child: Image.file(
-                            _image!,
-                                            fit: BoxFit.cover,
-                                          ),
-                                        ),
-                                      ),
-                                      Positioned(
-                                        top: 8,
-                                        right: 8,
-                                        child: IconButton(
-                                          icon: Icon(Icons.close, color: Colors.white),
-                                          style: IconButton.styleFrom(
-                                            backgroundColor: Colors.black54,
-                                          ),
-                                          onPressed: _removeImage,
-                                        ),
-                                      ),
-                                    ],
-                                  )
-                                : Container(
-                                    height: 120,
-                              width: double.infinity,
-                              decoration: BoxDecoration(
-                                      border: Border.all(color: Colors.grey.shade300),
-                                      borderRadius: BorderRadius.circular(8),
-                                    ),
-                                    child: Center(
-                                      child: Column(
-                                        mainAxisAlignment: MainAxisAlignment.center,
-                                        children: [
-                                          Icon(
-                                            Icons.image,
-                                            size: 32,
-                                            color: Colors.grey.shade400,
-                                          ),
-                                          SizedBox(height: 8),
-                                          Text(
-                                            "No image selected",
-                                            style: TextStyle(
-                                              color: Colors.grey.shade600,
-                                            ),
-                                          ),
-                                        ],
-                                      ),
+                              children: [
+                                Container(
+                                  height: 120,
+                                  width: double.infinity,
+                                  decoration: BoxDecoration(
+                                    border: Border.all(color: Colors.grey.shade300),
+                                    borderRadius: BorderRadius.circular(8),
+                                  ),
+                                  child: ClipRRect(
+                                    borderRadius: BorderRadius.circular(8),
+                                    child: Image.file(
+                                      _image!,
+                                      fit: BoxFit.cover,
                                     ),
                                   ),
+                                ),
+                                Positioned(
+                                  top: 8,
+                                  right: 8,
+                                  child: IconButton(
+                                    icon: Icon(Icons.close, color: Colors.white),
+                                    style: IconButton.styleFrom(
+                                      backgroundColor: Colors.black54,
+                                    ),
+                                    onPressed: _removeImage,
+                                  ),
+                                ),
+                              ],
+                            )
+                                : Container(
+                              height: 120,
+                              width: double.infinity,
+                              decoration: BoxDecoration(
+                                border: Border.all(color: Colors.grey.shade300),
+                                borderRadius: BorderRadius.circular(8),
+                              ),
+                              child: Center(
+                                child: Column(
+                                  mainAxisAlignment: MainAxisAlignment.center,
+                                  children: [
+                                    Icon(
+                                      Icons.image,
+                                      size: 32,
+                                      color: Colors.grey.shade400,
+                                    ),
+                                    SizedBox(height: 8),
+                                    Text(
+                                      "No image selected",
+                                      style: TextStyle(
+                                        color: Colors.grey.shade600,
+                                      ),
+                                    ),
+                                  ],
+                                ),
+                              ),
+                            ),
                           ],
                           if (_editingIndex != null && (_notes[_editingIndex!]['imageUrl'] != null || _image != null)) ...[
                             SizedBox(height: 24),
@@ -1093,19 +1093,19 @@ void _resetForm() {
                           SizedBox(height: 16),
                           Row(
                             mainAxisAlignment: MainAxisAlignment.end,
-                    children: [
+                            children: [
                               if (_editingIndex == null || _notes[_editingIndex!]['imageUrl'] != null || _image != null || _editingIndex != null)
                                 TextButton.icon(
-                        onPressed: _pickImage,
+                                  onPressed: _pickImage,
                                   icon: Icon(Icons.image),
                                   label: Text(_editingIndex != null ? "Change Image" : "Pick Image"),
                                   style: TextButton.styleFrom(
                                     foregroundColor: Theme.of(context).primaryColor,
-                      ),
+                                  ),
                                 ),
                               SizedBox(width: 16),
                               ElevatedButton.icon(
-                        onPressed: _saveNote,
+                                onPressed: _saveNote,
                                 icon: Icon(_editingIndex != null ? Icons.edit : Icons.save),
                                 label: Text(_editingIndex != null ? "Update Note" : "Save Note"),
                                 style: ElevatedButton.styleFrom(
@@ -1116,14 +1116,14 @@ void _resetForm() {
                                     borderRadius: BorderRadius.circular(8),
                                   ),
                                 ),
+                              ),
+                            ],
+                          ),
+                        ],
                       ),
-                    ],
+                    ),
                   ),
                 ],
-                      ),
-              ),
-            ),
-        ],
               ),
             ),
           ),
@@ -1131,84 +1131,84 @@ void _resetForm() {
           Expanded(
             child: _filteredNotes.isEmpty
                 ? Center(
-                    child: Text(
-                      'No notes in this folder',
-                      style: TextStyle(
-                        fontSize: 16,
-                        color: Colors.grey[600],
+              child: Text(
+                'No notes in this folder',
+                style: TextStyle(
+                  fontSize: 16,
+                  color: Colors.grey[600],
+                ),
+              ),
+            )
+                : ListView.builder(
+              itemCount: _filteredNotes.length,
+              itemBuilder: (context, index) {
+                return Card(
+                  margin: EdgeInsets.all(8.0),
+                  child: InkWell(
+                    onTap: () {
+                      setState(() {
+                        _selectedNoteIndex = index;
+                      });
+                    },
+                    child: Padding(
+                      padding: EdgeInsets.all(16.0),
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Row(
+                            children: [
+                              if (_filteredNotes[index]['imageUrl'] != null)
+                                Container(
+                                  width: 50,
+                                  height: 50,
+                                  margin: EdgeInsets.only(right: 16),
+                                  decoration: BoxDecoration(
+                                    borderRadius: BorderRadius.circular(8),
+                                    image: DecorationImage(
+                                      image: NetworkImage(_filteredNotes[index]['imageUrl']),
+                                      fit: BoxFit.cover,
+                                    ),
+                                  ),
+                                ),
+                              Expanded(
+                                child: Column(
+                                  crossAxisAlignment: CrossAxisAlignment.start,
+                                  children: [
+                                    Text(
+                                      _filteredNotes[index]['title'],
+                                      style: TextStyle(
+                                        fontSize: 18,
+                                        fontWeight: FontWeight.bold,
+                                        color: Colors.black87,
+                                      ),
+                                    ),
+                                    SizedBox(height: 4),
+                                    _buildFormattedText(_filteredNotes[index]['code']),
+                                  ],
+                                ),
+                              ),
+                            ],
+                          ),
+                          Row(
+                            mainAxisAlignment: MainAxisAlignment.end,
+                            children: [
+                              IconButton(
+                                icon: Icon(Icons.edit, color: Colors.blue),
+                                onPressed: () => _editNote(index),
+                              ),
+                              IconButton(
+                                icon: Icon(Icons.delete, color: Colors.red),
+                                onPressed: () => _deleteNote(index),
+                              ),
+                            ],
+                          ),
+                        ],
                       ),
                     ),
-                  )
-                : ListView.builder(
-                    itemCount: _filteredNotes.length,
-                    itemBuilder: (context, index) {
-                      return Card(
-                        margin: EdgeInsets.all(8.0),
-                        child: InkWell(
-                          onTap: () {
-                            setState(() {
-                              _selectedNoteIndex = index;
-                            });
-                          },
-                          child: Padding(
-                            padding: EdgeInsets.all(16.0),
-                            child: Column(
-                              crossAxisAlignment: CrossAxisAlignment.start,
-                              children: [
-                                Row(
-                                  children: [
-                                    if (_filteredNotes[index]['imageUrl'] != null)
-                                      Container(
-                                        width: 50,
-                                        height: 50,
-                                        margin: EdgeInsets.only(right: 16),
-                                        decoration: BoxDecoration(
-                                          borderRadius: BorderRadius.circular(8),
-                                          image: DecorationImage(
-                                            image: NetworkImage(_filteredNotes[index]['imageUrl']),
-                                            fit: BoxFit.cover,
-                                          ),
-                                        ),
-                                      ),
-                                    Expanded(
-                                      child: Column(
-                                        crossAxisAlignment: CrossAxisAlignment.start,
-                                        children: [
-                                          Text(
-                                            _filteredNotes[index]['title'],
-                                            style: TextStyle(
-                                              fontSize: 18,
-                                              fontWeight: FontWeight.bold,
-                                              color: Colors.black87,
-                                            ),
-                                          ),
-                                          SizedBox(height: 4),
-                                          _buildFormattedText(_filteredNotes[index]['code']),
-                                        ],
-                                      ),
-                                    ),
-                                  ],
-                                ),
-                                Row(
-                                  mainAxisAlignment: MainAxisAlignment.end,
-                                  children: [
-                                    IconButton(
-                                      icon: Icon(Icons.edit, color: Colors.blue),
-                                      onPressed: () => _editNote(index),
-                                    ),
-                                    IconButton(
-                                      icon: Icon(Icons.delete, color: Colors.red),
-                                      onPressed: () => _deleteNote(index),
-                                    ),
-                                  ],
-                                ),
-                              ],
-                            ),
-                          ),
-                        ),
-                      );
-                    },
                   ),
+                );
+              },
+            ),
           ),
       ],
     );
@@ -1218,7 +1218,7 @@ void _resetForm() {
     return AlertDialog(
       title: Text('Select Programming Language'),
       content: SingleChildScrollView(
-              child: Column(
+        child: Column(
           children: [
             for (var i = 0; i < _availableIcons.length; i += 3)
               Row(
@@ -1257,12 +1257,12 @@ void _resetForm() {
                           ),
                         ],
                       ),
-                      ),
-                    ],
-                  ),
+                    ),
                 ],
               ),
-            ),
+          ],
+        ),
+      ),
     );
   }
 
@@ -1307,7 +1307,7 @@ void _resetForm() {
       children: codeBlocks.asMap().entries.map((entry) {
         final index = entry.key;
         final block = entry.value;
-        
+
         if (index % 2 == 1) { // This is a code block (odd indices)
           return Container(
             width: double.infinity,
@@ -1331,7 +1331,7 @@ void _resetForm() {
         } else { // This is regular text (even indices)
           final spans = <TextSpan>[];
           var currentText = block;
-          
+
           // Process bold text
           while (currentText.contains('**')) {
             final partsBefore = currentText.split('**');
@@ -1358,7 +1358,7 @@ void _resetForm() {
               break;
             }
           }
-          
+
           // Process underlined text
           while (currentText.contains('__')) {
             final partsBefore = currentText.split('__');
@@ -1385,7 +1385,7 @@ void _resetForm() {
               break;
             }
           }
-          
+
           // Add any remaining text
           if (currentText.isNotEmpty) {
             spans.add(TextSpan(
@@ -1397,7 +1397,7 @@ void _resetForm() {
               ),
             ));
           }
-          
+
           return SelectableText.rich(
             TextSpan(children: spans),
             style: TextStyle(
@@ -1414,11 +1414,11 @@ void _resetForm() {
   Widget _buildFormattedText(String text) {
     final spans = <TextSpan>[];
     var currentText = text;
-    
+
     // Split text into lines and filter out empty ones
     final lines = currentText.split('\n').where((line) => line.trim().isNotEmpty).toList();
     currentText = lines.join('\n');
-    
+
     // Process bold text
     while (currentText.contains('**')) {
       final partsBefore = currentText.split('**');
@@ -1445,7 +1445,7 @@ void _resetForm() {
         break;
       }
     }
-    
+
     // Process underlined text
     while (currentText.contains('__')) {
       final partsBefore = currentText.split('__');
@@ -1472,7 +1472,7 @@ void _resetForm() {
         break;
       }
     }
-    
+
     // Add any remaining text
     if (currentText.isNotEmpty) {
       spans.add(TextSpan(
@@ -1484,7 +1484,7 @@ void _resetForm() {
         ),
       ));
     }
-    
+
     return Text.rich(
       TextSpan(children: spans),
       style: TextStyle(
