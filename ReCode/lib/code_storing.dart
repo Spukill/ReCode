@@ -106,7 +106,6 @@ class _CodeStoringPageState extends State<CodeStoringPage>
   Future<void> _loadFolders() async {
     if (!mounted) return;
 
-
     setState(() => _isLoading = true);
     User? user = _auth.currentUser;
     if (user != null) {
@@ -334,9 +333,6 @@ class _CodeStoringPageState extends State<CodeStoringPage>
   Future<void> _saveNote() async {
     final title = _titleController.text.trim();
     final codeSnippet = _codeController.text.trim();
-  Future<void> _saveNote() async {
-    final title = _titleController.text.trim();
-    final codeSnippet = _codeController.text.trim();
 
     if (title.isEmpty && codeSnippet.isEmpty) {
       ScaffoldMessenger.of(context).showSnackBar(
@@ -344,20 +340,7 @@ class _CodeStoringPageState extends State<CodeStoringPage>
       );
       return;
     }
-    if (title.isEmpty && codeSnippet.isEmpty) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Please add a title or code snippet')),
-      );
-      return;
-    }
 
-    final user = _auth.currentUser;
-    if (user == null) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('You must be logged in to save notes')),
-      );
-      return;
-    }
     final user = _auth.currentUser;
     if (user == null) {
       ScaffoldMessenger.of(context).showSnackBar(
@@ -367,9 +350,6 @@ class _CodeStoringPageState extends State<CodeStoringPage>
     }
 
     setState(() => _isLoading = true);
-    try {
-      String? imageUrl;
-
     try {
       String? imageUrl;
 
@@ -422,12 +402,9 @@ class _CodeStoringPageState extends State<CodeStoringPage>
             },
           );
 
-
           final uploadTask = await storageRef.putFile(_image!, metadata);
 
-
           if (uploadTask.state == TaskState.success) {
-            imageUrl = await storageRef.getDownloadURL();
             imageUrl = await storageRef.getDownloadURL();
             print('New image uploaded successfully: $imageUrl');
           } else {
@@ -448,10 +425,7 @@ class _CodeStoringPageState extends State<CodeStoringPage>
       }
 
       if (_editingIndex != null) {
-      if (_editingIndex != null) {
         final noteId = _notes[_editingIndex!]['id'];
-        final currentImageUrl = _notes[_editingIndex!]['imageUrl'];
-
         final currentImageUrl = _notes[_editingIndex!]['imageUrl'];
 
         // Update the original note
@@ -480,9 +454,7 @@ class _CodeStoringPageState extends State<CodeStoringPage>
           });
         }
       } else {
-      } else {
         final newNoteRef = await _firestore.collection('notes').add({
-          'userId': user.uid,
           'userId': user.uid,
           'folderId': _currentFolderId,
           'title': title,
@@ -516,25 +488,19 @@ class _CodeStoringPageState extends State<CodeStoringPage>
       }
 
       _resetForm();
-      _resetForm();
       if (_currentFolderId != null) {
         await _loadNotes(_currentFolderId!);
       }
       setState(() => _isLoading = false);
     } catch (e) {
-    } catch (e) {
       setState(() => _isLoading = false);
       print('Error saving note: $e');
-      ScaffoldMessenger.of(context).showSnackBar(
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
           content: Text('Error saving note: ${e.toString()}'),
           backgroundColor: Colors.red,
           duration: Duration(seconds: 5),
         ),
-      );
-    }
-  }
       );
     }
   }
@@ -555,11 +521,7 @@ class _CodeStoringPageState extends State<CodeStoringPage>
         imageQuality: 80,
       );
 
-
       if (pickedFile != null) {
-        setState(() {
-          _image = File(pickedFile.path);
-        });
         setState(() {
           _image = File(pickedFile.path);
         });
@@ -599,16 +561,13 @@ class _CodeStoringPageState extends State<CodeStoringPage>
       await _firestore.collection('notes').doc(_notes[index]['id']).delete();
       print('Note deleted from Firestore');
 
-
       if (_notes[index]['imageUrl'] != null) {
         final imageUrl = _notes[index]['imageUrl'];
         try {
           print('Attempting to delete image: $imageUrl');
 
-
           final storageRef = _storage.refFromURL(imageUrl);
           print('Got storage reference');
-
 
           await storageRef.delete();
           print('Image deleted successfully');
@@ -619,10 +578,8 @@ class _CodeStoringPageState extends State<CodeStoringPage>
             final path = uri.path.split('/o/')[1].split('?')[0];
             print('Extracted path: $path');
 
-
             final storageRef = _storage.ref().child(path);
             print('Created storage reference');
-
 
             await storageRef.delete();
             print('Image deleted successfully using alternative method');
@@ -638,7 +595,6 @@ class _CodeStoringPageState extends State<CodeStoringPage>
           }
         }
       }
-
 
       setState(() {
         _notes.removeAt(index);
@@ -675,7 +631,6 @@ class _CodeStoringPageState extends State<CodeStoringPage>
       }
 
       await _firestore.collection('folders').doc(folderId).delete();
-
 
       setState(() {
         _folders.removeWhere((folder) => folder['id'] == folderId);
@@ -821,7 +776,6 @@ class _CodeStoringPageState extends State<CodeStoringPage>
               children: [
                 Row(
                   children: [
-                  children: [
                     Expanded(
                       child: TextField(
                         controller: _folderNameController,
@@ -871,11 +825,8 @@ class _CodeStoringPageState extends State<CodeStoringPage>
           ),
         Expanded(
           child: ListView.builder(
-        Expanded(
-          child: ListView.builder(
             padding: EdgeInsets.all(16),
             itemCount: _filteredFolders.length,
-            itemBuilder: (context, index) {
             itemBuilder: (context, index) {
               return Container(
                 height: 70,
@@ -941,12 +892,6 @@ class _CodeStoringPageState extends State<CodeStoringPage>
             },
           ),
         ),
-                  ),
-                ),
-              );
-            },
-          ),
-        ),
       ],
     );
   }
@@ -993,55 +938,7 @@ class _CodeStoringPageState extends State<CodeStoringPage>
         )['name'];
 
     if (_selectedNoteIndex != null && !_isAddingNote) {
-      return Column(
-        children: [
-          ListTile(
-            leading: IconButton(
-              icon: Icon(Icons.arrow_back),
-              onPressed: () {
-                setState(() {
-              onPressed: () {
-                setState(() {
-                  _selectedNoteIndex = null;
-                });
-              },
-                });
-              },
-            ),
-            title: Text(
-              _filteredNotes[_selectedNoteIndex!]['title'],
-              style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
-            ),
-          ),
-          Expanded(
-            child: SingleChildScrollView(
-              padding: EdgeInsets.all(16),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                mainAxisAlignment: MainAxisAlignment.start,
-                children: [
-                  if (_filteredNotes[_selectedNoteIndex!]['imageUrl'] != null)
-                    Container(
-                      width: double.infinity,
-                      height: 200,
-                      margin: EdgeInsets.only(bottom: 16),
-                      decoration: BoxDecoration(
-                        borderRadius: BorderRadius.circular(8),
-                        image: DecorationImage(
-                          image: NetworkImage(
-                            _filteredNotes[_selectedNoteIndex!]['imageUrl'],
-                          ),
-                          fit: BoxFit.cover,
-                        ),
-                      ),
-                    ),
-                  _buildCodeBlock(_filteredNotes[_selectedNoteIndex!]['code']),
-                ],
-              ),
-            ),
-          ),
-        ],
-      );
+      return _buildNoteDetails();
     }
 
     return Column(
@@ -1062,8 +959,6 @@ class _CodeStoringPageState extends State<CodeStoringPage>
             },
           ),
           title: Text(currentFolderName),
-        ),
-        if (_isAddingNote)
         ),
         if (_isAddingNote)
           Expanded(
@@ -1099,8 +994,6 @@ class _CodeStoringPageState extends State<CodeStoringPage>
                           SizedBox(height: 24),
                           TextField(
                             controller: _titleController,
-                          TextField(
-                            controller: _titleController,
                             decoration: InputDecoration(
                               labelText: 'Title',
                               hintText: 'Enter a title for your note',
@@ -1109,8 +1002,6 @@ class _CodeStoringPageState extends State<CodeStoringPage>
                             ),
                           ),
                           SizedBox(height: 16),
-                          TextField(
-                            controller: _codeController,
                           TextField(
                             controller: _codeController,
                             decoration: InputDecoration(
@@ -1160,7 +1051,6 @@ class _CodeStoringPageState extends State<CodeStoringPage>
                               ),
                             ),
                             SizedBox(height: 12),
-                            _image != null
                             _image != null
                                 ? Stack(
                                   children: [
@@ -1281,7 +1171,6 @@ class _CodeStoringPageState extends State<CodeStoringPage>
                                   _editingIndex != null)
                                 TextButton.icon(
                                   onPressed: _pickImage,
-                                  onPressed: _pickImage,
                                   icon: Icon(Icons.image),
                                   label: Text(
                                     _editingIndex != null
@@ -1322,14 +1211,7 @@ class _CodeStoringPageState extends State<CodeStoringPage>
                             ],
                           ),
                         ],
-                              ),
-                            ],
-                          ),
-                        ],
                       ),
-                    ),
-                  ),
-                ],
                     ),
                   ),
                 ],
@@ -1353,6 +1235,52 @@ class _CodeStoringPageState extends State<CodeStoringPage>
                       },
                     ),
           ),
+      ],
+    );
+  }
+
+  Widget _buildNoteDetails() {
+    return Column(
+      children: [
+        ListTile(
+          leading: IconButton(
+            icon: Icon(Icons.arrow_back),
+            onPressed: () {
+              setState(() => _selectedNoteIndex = null);
+            },
+          ),
+          title: Text(
+            _filteredNotes[_selectedNoteIndex!]['title'],
+            style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
+          ),
+        ),
+        Expanded(
+          child: SingleChildScrollView(
+            padding: EdgeInsets.all(16),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              mainAxisAlignment: MainAxisAlignment.start,
+              children: [
+                if (_filteredNotes[_selectedNoteIndex!]['imageUrl'] != null)
+                  Container(
+                    width: double.infinity,
+                    height: 200,
+                    margin: EdgeInsets.only(bottom: 16),
+                    decoration: BoxDecoration(
+                      borderRadius: BorderRadius.circular(8),
+                      image: DecorationImage(
+                        image: NetworkImage(
+                          _filteredNotes[_selectedNoteIndex!]['imageUrl'],
+                        ),
+                        fit: BoxFit.cover,
+                      ),
+                    ),
+                  ),
+                _buildCodeBlock(_filteredNotes[_selectedNoteIndex!]['code']),
+              ],
+            ),
+          ),
+        ),
       ],
     );
   }
@@ -1420,7 +1348,6 @@ class _CodeStoringPageState extends State<CodeStoringPage>
       title: Text('Select Programming Language'),
       content: SingleChildScrollView(
         child: Column(
-        child: Column(
           children: [
             for (var i = 0; i < _availableIcons.length; i += 3)
               Row(
@@ -1462,12 +1389,6 @@ class _CodeStoringPageState extends State<CodeStoringPage>
                           ),
                         ],
                       ),
-                    ),
-                ],
-              ),
-          ],
-        ),
-      ),
                     ),
                 ],
               ),
@@ -1636,7 +1557,6 @@ class _CodeStoringPageState extends State<CodeStoringPage>
     final spans = <TextSpan>[];
     var currentText = text;
 
-
     // Split text into lines and filter out empty ones
     final lines =
         currentText
@@ -1644,7 +1564,6 @@ class _CodeStoringPageState extends State<CodeStoringPage>
             .where((line) => line.trim().isNotEmpty)
             .toList();
     currentText = lines.join('\n');
-
 
     // Process bold text
     while (currentText.contains('**')) {
@@ -1673,7 +1592,6 @@ class _CodeStoringPageState extends State<CodeStoringPage>
       }
     }
 
-
     // Process underlined text
     while (currentText.contains('__')) {
       final partsBefore = currentText.split('__');
@@ -1701,7 +1619,6 @@ class _CodeStoringPageState extends State<CodeStoringPage>
       }
     }
 
-
     // Add any remaining text
     if (currentText.isNotEmpty) {
       spans.add(
@@ -1711,7 +1628,6 @@ class _CodeStoringPageState extends State<CodeStoringPage>
         ),
       );
     }
-
 
     return Text.rich(
       TextSpan(children: spans),
