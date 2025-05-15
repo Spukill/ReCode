@@ -3,6 +3,7 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter_svg/flutter_svg.dart';
 import 'package:flutter_highlight/flutter_highlight.dart';
 import 'package:flutter_highlight/themes/github.dart';
+import 'related_note.dart';
 
 extension StringExtensions on String {
   String capitalize() {
@@ -286,6 +287,22 @@ class _RecommendedNotesPageState extends State<RecommendedNotesPage> {
             style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
           ),
           subtitle: Text('By ${note['ownerName']}'),
+          trailing: IconButton(
+            icon: Icon(Icons.compare_arrows),
+            tooltip: 'Show similar notes in other languages',
+            onPressed: () {
+              Navigator.push(
+                context,
+                MaterialPageRoute(
+                  builder:
+                      (context) => RelatedNotesPage(
+                        originalNote: note,
+                        currentLanguage: widget.language,
+                      ),
+                ),
+              );
+            },
+          ),
         ),
         Expanded(
           child: SingleChildScrollView(
@@ -400,6 +417,145 @@ class _RecommendedNotesPageState extends State<RecommendedNotesPage> {
               );
             }
           }).toList(),
+    );
+  }
+
+  Future<List<Map<String, dynamic>>> _findRelatedNotes(
+    Map<String, dynamic> currentNote,
+  ) async {
+    try {
+      // Get the current note title and split it into keywords
+      String currentTitle = currentNote['title'].toString().toLowerCase();
+      List<String> keywords =
+          currentTitle
+              .split(' ')
+              .where(
+                (word) => word.length > 3,
+              ) // Ignore short words like "in", "the", etc.
+              .toList();
+
+      // Get all shared folders to determine their languages
+      QuerySnapshot foldersSnapshot =
+          await _firestore.collection('sharedFolders').get();
+
+      Map<String, String> folderLanguages = {};
+      for (var folder in foldersSnapshot.docs) {
+        String icon = folder.get('icon');
+        String language = _getLanguageFromIcon(icon);
+        folderLanguages[folder.id] = language;
+      }
+
+      // Get all notes
+      QuerySnapshot allNotesSnapshot =
+          await _firestore.collection('sharedNotes').get();
+
+      // Filter and score related notes
+      List<Map<String, dynamic>> relatedNotes = [];
+
+      for (var doc in allNotesSnapshot.docs) {
+        String noteTitle = doc.get('title').toString().toLowerCase();
+        String folderId = doc.get('sharedFolderId');
+        String noteLanguage = folderLanguages[folderId] ?? 'Unknown';
+
+        // Skip notes from the same language
+        if (noteLanguage == widget.language) continue;
+
+        // Calculate similarity score based on matching keywords
+        int matchingKeywords =
+            keywords.where((keyword) => noteTitle.contains(keyword)).length;
+
+        if (matchingKeywords > 0) {
+          relatedNotes.add({
+            'id': doc.id,
+            'title': doc.get('title'),
+            'code': doc.get('code'),
+            'imageUrl': doc.get('imageUrl'),
+            'tag': doc.get('tag') ?? 'dummies',
+            'ownerName': doc.get('ownerName'),
+            'language': noteLanguage,
+            'similarity': matchingKeywords,
+            'createdAt': doc.get('createdAt')?.toDate() ?? DateTime.now(),
+          });
+        }
+      }
+
+      // Sort by similarity score (highest first)
+      relatedNotes.sort((a, b) => b['similarity'].compareTo(a['similarity']));
+
+      return relatedNotes;
+    } catch (e) {
+      print('Error finding related notes: $e');
+      return [];
+    }
+  }
+
+  String _getLanguageFromIcon(String iconPath) {
+    if (iconPath.contains('c++')) return 'C++';
+    if (iconPath.contains('java')) return 'Java';
+    if (iconPath.contains('python')) return 'Python';
+    if (iconPath.contains('c.svg')) return 'C';
+    if (iconPath.contains('html')) return 'HTML';
+    if (iconPath.contains('flutter')) return 'Flutter';
+    return 'Unknown';
+  }
+
+  void _showRelatedNotesDialog(List<Map<String, dynamic>> relatedNotes) {
+    showDialog(
+      context: context,
+      builder:
+          (context) => AlertDialog(
+            title: Text('Similar Notes in Other Languages'),
+            content: Container(
+              width: double.maxFinite,
+              height: MediaQuery.of(context).size.height * 0.6,
+              child:
+                  relatedNotes.isEmpty
+                      ? Center(
+                        child: Text(
+                          'No similar notes found in other languages.',
+                          textAlign: TextAlign.center,
+                        ),
+                      )
+                      : ListView.builder(
+                        shrinkWrap: true,
+                        itemCount: relatedNotes.length,
+                        itemBuilder: (context, index) {
+                          final relatedNote = relatedNotes[index];
+                          return Card(
+                            child: ListTile(
+                              title: Text(relatedNote['title']),
+                              subtitle: Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  Text('Language: ${relatedNote['language']}'),
+                                  Text('By: ${relatedNote['ownerName']}'),
+                                ],
+                              ),
+                              onTap: () {
+                                Navigator.pop(context);
+                                // Navigate to the related note's language page
+                                Navigator.push(
+                                  context,
+                                  MaterialPageRoute(
+                                    builder:
+                                        (context) => RecommendedNotesPage(
+                                          language: relatedNote['language'],
+                                        ),
+                                  ),
+                                );
+                              },
+                            ),
+                          );
+                        },
+                      ),
+            ),
+            actions: [
+              TextButton(
+                onPressed: () => Navigator.pop(context),
+                child: Text('Close'),
+              ),
+            ],
+          ),
     );
   }
 }

@@ -7,6 +7,7 @@ import 'package:firebase_storage/firebase_storage.dart';
 import 'package:flutter_svg/flutter_svg.dart';
 import 'package:flutter_highlight/flutter_highlight.dart';
 import 'package:flutter_highlight/themes/github.dart';
+import 'related_note.dart';
 
 class LoadingOverlay extends StatelessWidget {
   final bool isLoading;
@@ -59,6 +60,7 @@ class _CodeStoringPageState extends State<CodeStoringPage>
   int? _selectedNoteIndex;
   bool _isLoading = false;
   String _selectedTag = 'dummies'; // Default tag value
+  String _selectedConcept = ''; // e.g., 'printing', 'loops', etc.
 
   final List<String> _availableIcons = [
     'assets/icons/c++.svg',
@@ -74,6 +76,17 @@ class _CodeStoringPageState extends State<CodeStoringPage>
     'basic',
     'advanced',
     'externalLibs',
+  ];
+
+  final List<String> _availableConcepts = [
+    'printing',
+    'variables',
+    'loops',
+    'conditionals',
+    'functions',
+    'arrays',
+    'objects',
+    // Add more concepts as needed
   ];
 
   final FirebaseFirestore _firestore = FirebaseFirestore.instance;
@@ -454,16 +467,26 @@ class _CodeStoringPageState extends State<CodeStoringPage>
           });
         }
       } else {
-        final newNoteRef = await _firestore.collection('notes').add({
-          'userId': user.uid,
-          'folderId': _currentFolderId,
-          'title': title,
-          'code': codeSnippet,
-          'imageUrl': imageUrl,
-          'tag': _selectedTag, // Add tag field
-          'createdAt': FieldValue.serverTimestamp(),
-          'updatedAt': FieldValue.serverTimestamp(),
-        });
+        // Get the language from the folder's icon
+        final folderDoc =
+            await _firestore.collection('folders').doc(_currentFolderId).get();
+        final folderIcon = folderDoc.data()?['icon'] as String;
+        final language = _getLanguageFromIcon(folderIcon);
+
+        // Create the note with the concept field
+        DocumentReference newNoteRef = await _firestore
+            .collection('notes')
+            .add({
+              'userId': user.uid,
+              'folderId': _currentFolderId,
+              'title': title,
+              'code': codeSnippet,
+              'imageUrl': imageUrl,
+              'tag': _selectedTag,
+              'concept': _selectedConcept,
+              'language': language,
+              'createdAt': FieldValue.serverTimestamp(),
+            });
 
         // If this note is in a shared folder, create a shared version
         QuerySnapshot sharedFoldersSnapshot =
@@ -479,7 +502,9 @@ class _CodeStoringPageState extends State<CodeStoringPage>
             'title': title,
             'code': codeSnippet,
             'imageUrl': imageUrl,
-            'tag': _selectedTag, // Add tag field
+            'tag': _selectedTag,
+            'concept': _selectedConcept,
+            'language': language,
             'createdAt': FieldValue.serverTimestamp(),
             'ownerId': user.uid,
             'ownerName': user.email ?? 'Anonymous',
@@ -1258,6 +1283,31 @@ class _CodeStoringPageState extends State<CodeStoringPage>
             mainAxisSize: MainAxisSize.min,
             children: [
               IconButton(
+                icon: Icon(Icons.compare_arrows),
+                tooltip: 'Show similar notes in other languages',
+                onPressed: () async {
+                  // Get the current folder's icon to determine the language
+                  DocumentSnapshot folderDoc =
+                      await _firestore
+                          .collection('folders')
+                          .doc(_currentFolderId)
+                          .get();
+                  String icon = folderDoc.get('icon');
+                  String language = _getLanguageFromIcon(icon);
+
+                  Navigator.push(
+                    context,
+                    MaterialPageRoute(
+                      builder:
+                          (context) => RelatedNotesPage(
+                            originalNote: note,
+                            currentLanguage: language,
+                          ),
+                    ),
+                  );
+                },
+              ),
+              IconButton(
                 icon: Icon(Icons.edit),
                 onPressed: () => _editNote(_selectedNoteIndex!),
               ),
@@ -1672,5 +1722,15 @@ class _CodeStoringPageState extends State<CodeStoringPage>
       maxLines: 2,
       overflow: TextOverflow.ellipsis,
     );
+  }
+
+  String _getLanguageFromIcon(String iconPath) {
+    if (iconPath.contains('c++')) return 'C++';
+    if (iconPath.contains('java')) return 'Java';
+    if (iconPath.contains('python')) return 'Python';
+    if (iconPath.contains('c.svg')) return 'C';
+    if (iconPath.contains('html')) return 'HTML';
+    if (iconPath.contains('flutter')) return 'Flutter';
+    return 'Unknown';
   }
 }

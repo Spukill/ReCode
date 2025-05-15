@@ -5,6 +5,7 @@ import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter_highlight/flutter_highlight.dart';
 import 'package:flutter_highlight/themes/github.dart';
 import 'raccomandad_note.dart';
+import 'related_note.dart';
 
 class LoadingOverlay extends StatelessWidget {
   final bool isLoading;
@@ -891,6 +892,45 @@ class _FolderNotesPageState extends State<FolderNotesPage> {
             style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
           ),
           subtitle: Text('By ${note['ownerName']}'),
+          trailing: IconButton(
+            icon: Icon(Icons.compare_arrows),
+            tooltip: 'Show similar notes in other languages',
+            onPressed: () {
+              Navigator.push(
+                context,
+                MaterialPageRoute(
+                  builder:
+                      (context) => RelatedNotesPage(
+                        originalNote: note,
+                        currentLanguage:
+                            widget.folder['icon'].toString().contains('c++')
+                                ? 'C++'
+                                : widget.folder['icon'].toString().contains(
+                                  'java',
+                                )
+                                ? 'Java'
+                                : widget.folder['icon'].toString().contains(
+                                  'python',
+                                )
+                                ? 'Python'
+                                : widget.folder['icon'].toString().contains(
+                                  'c.svg',
+                                )
+                                ? 'C'
+                                : widget.folder['icon'].toString().contains(
+                                  'html',
+                                )
+                                ? 'HTML'
+                                : widget.folder['icon'].toString().contains(
+                                  'flutter',
+                                )
+                                ? 'Flutter'
+                                : 'Unknown',
+                      ),
+                ),
+              );
+            },
+          ),
         ),
         Expanded(
           child: SingleChildScrollView(
