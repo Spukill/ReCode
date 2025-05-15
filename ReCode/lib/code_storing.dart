@@ -12,11 +12,8 @@ class LoadingOverlay extends StatelessWidget {
   final bool isLoading;
   final Widget child;
 
-  const LoadingOverlay({
-    Key? key,
-    required this.isLoading,
-    required this.child,
-  }) : super(key: key);
+  const LoadingOverlay({Key? key, required this.isLoading, required this.child})
+    : super(key: key);
 
   @override
   Widget build(BuildContext context) {
@@ -42,7 +39,8 @@ class CodeStoringPage extends StatefulWidget {
   _CodeStoringPageState createState() => _CodeStoringPageState();
 }
 
-class _CodeStoringPageState extends State<CodeStoringPage> with SingleTickerProviderStateMixin {
+class _CodeStoringPageState extends State<CodeStoringPage>
+    with SingleTickerProviderStateMixin {
   final TextEditingController _titleController = TextEditingController();
   final TextEditingController _codeController = TextEditingController();
   final TextEditingController _searchController = TextEditingController();
@@ -60,6 +58,7 @@ class _CodeStoringPageState extends State<CodeStoringPage> with SingleTickerProv
   String _selectedIcon = 'assets/icons/c++.svg';
   int? _selectedNoteIndex;
   bool _isLoading = false;
+  String _selectedTag = 'dummies'; // Default tag value
 
   final List<String> _availableIcons = [
     'assets/icons/c++.svg',
@@ -68,6 +67,13 @@ class _CodeStoringPageState extends State<CodeStoringPage> with SingleTickerProv
     'assets/icons/c.svg',
     'assets/icons/html.svg',
     'assets/icons/flutter.svg',
+  ];
+
+  final List<String> _availableTags = [
+    'dummies',
+    'basic',
+    'advanced',
+    'externalLibs',
   ];
 
   final FirebaseFirestore _firestore = FirebaseFirestore.instance;
@@ -83,10 +89,7 @@ class _CodeStoringPageState extends State<CodeStoringPage> with SingleTickerProv
       vsync: this,
     );
     _rotationAnimation = Tween<double>(begin: 0, end: 0.5).animate(
-      CurvedAnimation(
-        parent: _animationController,
-        curve: Curves.easeInOut,
-      ),
+      CurvedAnimation(parent: _animationController, curve: Curves.easeInOut),
     );
     // Add listener to search controller
     _searchController.addListener(() {
@@ -102,35 +105,41 @@ class _CodeStoringPageState extends State<CodeStoringPage> with SingleTickerProv
 
   Future<void> _loadFolders() async {
     if (!mounted) return;
-    
+
     setState(() => _isLoading = true);
     User? user = _auth.currentUser;
     if (user != null) {
       try {
-        QuerySnapshot snapshot = await _firestore
-            .collection('folders')
-            .where('userId', isEqualTo: user.uid)
-            .get();
-        
-        List<Map<String, dynamic>> sortedFolders = snapshot.docs.map((doc) {
-          dynamic iconData = doc['icon'];
-          String icon;
-          if (iconData is String) {
-            icon = iconData;
-          } else {
-            icon = 'assets/icons/c++.svg';
-          }
+        QuerySnapshot snapshot =
+            await _firestore
+                .collection('folders')
+                .where('userId', isEqualTo: user.uid)
+                .get();
 
-          return {
-            'id': doc.id,
-            'name': doc['name'],
-            'icon': icon,
-            'createdAt': doc['createdAt']?.toDate() ?? DateTime.now(),
-          };
-        }).toList();
-        
-        sortedFolders.sort((a, b) => (a['createdAt'] as DateTime).compareTo(b['createdAt'] as DateTime));
-        
+        List<Map<String, dynamic>> sortedFolders =
+            snapshot.docs.map((doc) {
+              dynamic iconData = doc['icon'];
+              String icon;
+              if (iconData is String) {
+                icon = iconData;
+              } else {
+                icon = 'assets/icons/c++.svg';
+              }
+
+              return {
+                'id': doc.id,
+                'name': doc['name'],
+                'icon': icon,
+                'createdAt': doc['createdAt']?.toDate() ?? DateTime.now(),
+              };
+            }).toList();
+
+        sortedFolders.sort(
+          (a, b) => (a['createdAt'] as DateTime).compareTo(
+            b['createdAt'] as DateTime,
+          ),
+        );
+
         if (mounted) {
           setState(() {
             _folders = sortedFolders;
@@ -159,20 +168,24 @@ class _CodeStoringPageState extends State<CodeStoringPage> with SingleTickerProv
   Future<void> _loadNotes(String folderId) async {
     User? user = _auth.currentUser;
     if (user != null) {
-      QuerySnapshot snapshot = await _firestore
-          .collection('notes')
-          .where('userId', isEqualTo: user.uid)
-          .where('folderId', isEqualTo: folderId)
-          .get();
+      QuerySnapshot snapshot =
+          await _firestore
+              .collection('notes')
+              .where('userId', isEqualTo: user.uid)
+              .where('folderId', isEqualTo: folderId)
+              .get();
       setState(() {
-        _notes = snapshot.docs.map((doc) {
-          return {
-            'id': doc.id,
-            'title': doc['title'],
-            'code': doc['code'],
-            'imageUrl': doc['imageUrl'],
-          };
-        }).toList();
+        _notes =
+            snapshot.docs.map((doc) {
+              return {
+                'id': doc.id,
+                'title': doc['title'],
+                'code': doc['code'],
+                'imageUrl': doc['imageUrl'],
+                'tag':
+                    doc['tag'] ?? 'dummies', // Add tag field with default value
+              };
+            }).toList();
         _currentFolderId = folderId;
       });
     }
@@ -186,9 +199,7 @@ class _CodeStoringPageState extends State<CodeStoringPage> with SingleTickerProv
           content: Text('Please enter a folder name'),
           backgroundColor: Colors.red,
           behavior: SnackBarBehavior.floating,
-          shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(8),
-          ),
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
           duration: Duration(seconds: 2),
         ),
       );
@@ -202,9 +213,7 @@ class _CodeStoringPageState extends State<CodeStoringPage> with SingleTickerProv
           content: Text('You must be logged in to create folders'),
           backgroundColor: Colors.red,
           behavior: SnackBarBehavior.floating,
-          shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(8),
-          ),
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
           duration: Duration(seconds: 2),
         ),
       );
@@ -234,16 +243,18 @@ class _CodeStoringPageState extends State<CodeStoringPage> with SingleTickerProv
           content: Text('Error creating folder: ${e.toString()}'),
           backgroundColor: Colors.red,
           behavior: SnackBarBehavior.floating,
-          shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(8),
-          ),
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
           duration: Duration(seconds: 2),
         ),
       );
     }
   }
 
-  Future<void> _shareFolder(String folderId, String folderName, String icon) async {
+  Future<void> _shareFolder(
+    String folderId,
+    String folderName,
+    String icon,
+  ) async {
     final user = _auth.currentUser;
     if (user == null) {
       ScaffoldMessenger.of(context).showSnackBar(
@@ -251,9 +262,7 @@ class _CodeStoringPageState extends State<CodeStoringPage> with SingleTickerProv
           content: Text('You must be logged in to share folders'),
           backgroundColor: Colors.red,
           behavior: SnackBarBehavior.floating,
-          shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(8),
-          ),
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
           duration: Duration(seconds: 2),
         ),
       );
@@ -263,11 +272,12 @@ class _CodeStoringPageState extends State<CodeStoringPage> with SingleTickerProv
     setState(() => _isLoading = true);
     try {
       // First, get all notes from the folder
-      QuerySnapshot notesSnapshot = await _firestore
-          .collection('notes')
-          .where('userId', isEqualTo: user.uid)
-          .where('folderId', isEqualTo: folderId)
-          .get();
+      QuerySnapshot notesSnapshot =
+          await _firestore
+              .collection('notes')
+              .where('userId', isEqualTo: user.uid)
+              .where('folderId', isEqualTo: folderId)
+              .get();
 
       // Create the shared folder
       final sharedFolderRef = await _firestore.collection('sharedFolders').add({
@@ -289,6 +299,7 @@ class _CodeStoringPageState extends State<CodeStoringPage> with SingleTickerProv
           'title': doc['title'],
           'code': doc['code'],
           'imageUrl': doc['imageUrl'],
+          'tag': doc['tag'] ?? 'dummies', // Add tag field
           'createdAt': doc['createdAt'] ?? FieldValue.serverTimestamp(),
           'ownerId': user.uid,
           'ownerName': user.email ?? 'Anonymous',
@@ -301,9 +312,7 @@ class _CodeStoringPageState extends State<CodeStoringPage> with SingleTickerProv
           content: Text('Folder shared successfully!'),
           backgroundColor: Colors.green,
           behavior: SnackBarBehavior.floating,
-          shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(8),
-          ),
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
           duration: Duration(seconds: 2),
         ),
       );
@@ -314,38 +323,36 @@ class _CodeStoringPageState extends State<CodeStoringPage> with SingleTickerProv
           content: Text('Error sharing folder: ${e.toString()}'),
           backgroundColor: Colors.red,
           behavior: SnackBarBehavior.floating,
-          shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(8),
-          ),
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
           duration: Duration(seconds: 2),
         ),
       );
     }
   }
 
-Future<void> _saveNote() async {
-  final title = _titleController.text.trim();
-  final codeSnippet = _codeController.text.trim();
+  Future<void> _saveNote() async {
+    final title = _titleController.text.trim();
+    final codeSnippet = _codeController.text.trim();
 
-  if (title.isEmpty && codeSnippet.isEmpty) {
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(content: Text('Please add a title or code snippet')),
-    );
-    return;
-  }
+    if (title.isEmpty && codeSnippet.isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Please add a title or code snippet')),
+      );
+      return;
+    }
 
-  final user = _auth.currentUser;
-  if (user == null) {
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(content: Text('You must be logged in to save notes')),
-    );
-    return;
-  }
+    final user = _auth.currentUser;
+    if (user == null) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('You must be logged in to save notes')),
+      );
+      return;
+    }
 
     setState(() => _isLoading = true);
-  try {
-    String? imageUrl;
-    
+    try {
+      String? imageUrl;
+
       // Handle image removal during editing
       if (_editingIndex != null && _image != null && _image!.path.isEmpty) {
         // Delete the old image if it exists
@@ -365,7 +372,8 @@ Future<void> _saveNote() async {
       else if (_image != null && _image!.path.isNotEmpty) {
         try {
           // If editing a note and it has an old image, delete it first
-          if (_editingIndex != null && _notes[_editingIndex!]['imageUrl'] != null) {
+          if (_editingIndex != null &&
+              _notes[_editingIndex!]['imageUrl'] != null) {
             try {
               final oldImageUrl = _notes[_editingIndex!]['imageUrl'];
               final storageRef = _storage.refFromURL(oldImageUrl);
@@ -380,9 +388,12 @@ Future<void> _saveNote() async {
           final timestamp = DateTime.now().millisecondsSinceEpoch;
           final fileExtension = _image!.path.split('.').last;
           final fileName = '${user.uid}_$timestamp.$fileExtension';
-          
-          final storageRef = _storage.ref().child('note_images').child(fileName);
-          
+
+          final storageRef = _storage
+              .ref()
+              .child('note_images')
+              .child(fileName);
+
           final metadata = SettableMetadata(
             contentType: 'image/$fileExtension',
             customMetadata: {
@@ -390,11 +401,11 @@ Future<void> _saveNote() async {
               'timestamp': timestamp.toString(),
             },
           );
-          
+
           final uploadTask = await storageRef.putFile(_image!, metadata);
-          
+
           if (uploadTask.state == TaskState.success) {
-      imageUrl = await storageRef.getDownloadURL();
+            imageUrl = await storageRef.getDownloadURL();
             print('New image uploaded successfully: $imageUrl');
           } else {
             throw Exception('Failed to upload image: ${uploadTask.state}');
@@ -413,48 +424,53 @@ Future<void> _saveNote() async {
         }
       }
 
-    if (_editingIndex != null) {
+      if (_editingIndex != null) {
         final noteId = _notes[_editingIndex!]['id'];
-      final currentImageUrl = _notes[_editingIndex!]['imageUrl'];
-        
+        final currentImageUrl = _notes[_editingIndex!]['imageUrl'];
+
         // Update the original note
         await _firestore.collection('notes').doc(noteId).update({
-        'title': title,
-        'code': codeSnippet,
-          'imageUrl': imageUrl ?? currentImageUrl, // Keep existing image if no new one is uploaded
-        'updatedAt': FieldValue.serverTimestamp(),
-      });
+          'title': title,
+          'code': codeSnippet,
+          'imageUrl': imageUrl ?? currentImageUrl,
+          'tag': _selectedTag, // Add tag field
+          'updatedAt': FieldValue.serverTimestamp(),
+        });
 
         // Find and update any shared versions of this note
-        QuerySnapshot sharedNotesSnapshot = await _firestore
-            .collection('sharedNotes')
-            .where('originalNoteId', isEqualTo: noteId)
-            .get();
+        QuerySnapshot sharedNotesSnapshot =
+            await _firestore
+                .collection('sharedNotes')
+                .where('originalNoteId', isEqualTo: noteId)
+                .get();
 
         for (var doc in sharedNotesSnapshot.docs) {
           await doc.reference.update({
-        'title': title,
-        'code': codeSnippet,
-            'imageUrl': imageUrl ?? currentImageUrl, // Keep existing image if no new one is uploaded
-        'updatedAt': FieldValue.serverTimestamp(),
-      });
+            'title': title,
+            'code': codeSnippet,
+            'imageUrl': imageUrl ?? currentImageUrl,
+            'tag': _selectedTag, // Add tag field
+            'updatedAt': FieldValue.serverTimestamp(),
+          });
         }
-    } else {
+      } else {
         final newNoteRef = await _firestore.collection('notes').add({
-        'userId': user.uid,
+          'userId': user.uid,
           'folderId': _currentFolderId,
-        'title': title,
-        'code': codeSnippet,
-        'imageUrl': imageUrl,
-        'createdAt': FieldValue.serverTimestamp(),
-        'updatedAt': FieldValue.serverTimestamp(),
-      });
+          'title': title,
+          'code': codeSnippet,
+          'imageUrl': imageUrl,
+          'tag': _selectedTag, // Add tag field
+          'createdAt': FieldValue.serverTimestamp(),
+          'updatedAt': FieldValue.serverTimestamp(),
+        });
 
         // If this note is in a shared folder, create a shared version
-        QuerySnapshot sharedFoldersSnapshot = await _firestore
-            .collection('sharedFolders')
-            .where('originalFolderId', isEqualTo: _currentFolderId)
-            .get();
+        QuerySnapshot sharedFoldersSnapshot =
+            await _firestore
+                .collection('sharedFolders')
+                .where('originalFolderId', isEqualTo: _currentFolderId)
+                .get();
 
         for (var folderDoc in sharedFoldersSnapshot.docs) {
           await _firestore.collection('sharedNotes').add({
@@ -463,6 +479,7 @@ Future<void> _saveNote() async {
             'title': title,
             'code': codeSnippet,
             'imageUrl': imageUrl,
+            'tag': _selectedTag, // Add tag field
             'createdAt': FieldValue.serverTimestamp(),
             'ownerId': user.uid,
             'ownerName': user.email ?? 'Anonymous',
@@ -470,31 +487,32 @@ Future<void> _saveNote() async {
         }
       }
 
-    _resetForm();
+      _resetForm();
       if (_currentFolderId != null) {
         await _loadNotes(_currentFolderId!);
       }
       setState(() => _isLoading = false);
-  } catch (e) {
+    } catch (e) {
       setState(() => _isLoading = false);
       print('Error saving note: $e');
-    ScaffoldMessenger.of(context).showSnackBar(
+      ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
           content: Text('Error saving note: ${e.toString()}'),
           backgroundColor: Colors.red,
           duration: Duration(seconds: 5),
         ),
-    );
+      );
+    }
   }
-} 
 
-void _resetForm() {
-  _titleController.clear();
-  _codeController.clear();
-  _image = null;
-  _isAddingNote = false;
-  _editingIndex = null;
-}
+  void _resetForm() {
+    _titleController.clear();
+    _codeController.clear();
+    _image = null;
+    _isAddingNote = false;
+    _editingIndex = null;
+    _selectedTag = 'dummies'; // Reset tag to default value
+  }
 
   Future<void> _pickImage() async {
     try {
@@ -502,11 +520,11 @@ void _resetForm() {
         source: ImageSource.gallery,
         imageQuality: 80,
       );
-      
+
       if (pickedFile != null) {
-          setState(() {
-            _image = File(pickedFile.path);
-          });
+        setState(() {
+          _image = File(pickedFile.path);
+        });
       }
     } catch (e) {
       ScaffoldMessenger.of(context).showSnackBar(
@@ -530,6 +548,7 @@ void _resetForm() {
     setState(() {
       _titleController.text = _notes[index]['title'];
       _codeController.text = _notes[index]['code'];
+      _selectedTag = _notes[index]['tag'] ?? 'dummies'; // Load existing tag
       _image = null;
       _isAddingNote = true;
       _editingIndex = index;
@@ -541,15 +560,15 @@ void _resetForm() {
     try {
       await _firestore.collection('notes').doc(_notes[index]['id']).delete();
       print('Note deleted from Firestore');
-      
+
       if (_notes[index]['imageUrl'] != null) {
         final imageUrl = _notes[index]['imageUrl'];
         try {
           print('Attempting to delete image: $imageUrl');
-          
+
           final storageRef = _storage.refFromURL(imageUrl);
           print('Got storage reference');
-          
+
           await storageRef.delete();
           print('Image deleted successfully');
         } catch (e) {
@@ -558,10 +577,10 @@ void _resetForm() {
             final uri = Uri.parse(imageUrl);
             final path = uri.path.split('/o/')[1].split('?')[0];
             print('Extracted path: $path');
-            
+
             final storageRef = _storage.ref().child(path);
             print('Created storage reference');
-            
+
             await storageRef.delete();
             print('Image deleted successfully using alternative method');
           } catch (e2) {
@@ -576,7 +595,7 @@ void _resetForm() {
           }
         }
       }
-      
+
       setState(() {
         _notes.removeAt(index);
         _isLoading = false;
@@ -598,11 +617,12 @@ void _resetForm() {
   Future<void> _deleteFolder(String folderId) async {
     setState(() => _isLoading = true);
     try {
-      QuerySnapshot notesSnapshot = await _firestore
-          .collection('notes')
-          .where('folderId', isEqualTo: folderId)
-          .get();
-      
+      QuerySnapshot notesSnapshot =
+          await _firestore
+              .collection('notes')
+              .where('folderId', isEqualTo: folderId)
+              .get();
+
       for (var doc in notesSnapshot.docs) {
         if (doc['imageUrl'] != null) {
           await _storage.refFromURL(doc['imageUrl']).delete();
@@ -611,7 +631,7 @@ void _resetForm() {
       }
 
       await _firestore.collection('folders').doc(folderId).delete();
-      
+
       setState(() {
         _folders.removeWhere((folder) => folder['id'] == folderId);
         if (_currentFolderId == folderId) {
@@ -642,19 +662,32 @@ void _resetForm() {
     if (_searchController.text.isEmpty) {
       return _folders;
     }
-    return _folders.where((folder) => 
-      folder['name'].toLowerCase().contains(_searchController.text.toLowerCase())
-    ).toList();
+    return _folders
+        .where(
+          (folder) => folder['name'].toLowerCase().contains(
+            _searchController.text.toLowerCase(),
+          ),
+        )
+        .toList();
   }
 
   List<Map<String, dynamic>> get _filteredNotes {
     if (_searchController.text.isEmpty) {
       return _notes;
     }
-    return _notes.where((note) => 
-      (note['title']?.toLowerCase().contains(_searchController.text.toLowerCase()) ?? false) ||
-      (note['code']?.toLowerCase().contains(_searchController.text.toLowerCase()) ?? false)
-    ).toList();
+    return _notes
+        .where(
+          (note) =>
+              (note['title']?.toLowerCase().contains(
+                    _searchController.text.toLowerCase(),
+                  ) ??
+                  false) ||
+              (note['code']?.toLowerCase().contains(
+                    _searchController.text.toLowerCase(),
+                  ) ??
+                  false),
+        )
+        .toList();
   }
 
   @override
@@ -665,33 +698,40 @@ void _resetForm() {
         appBar: AppBar(
           title: Padding(
             padding: EdgeInsets.only(top: 8.0),
-            child: _selectedNoteIndex != null && !_isAddingNote
-                ? Text(
-                    'Note Details',
-                    style: TextStyle(
-                      fontSize: 20,
-                      fontWeight: FontWeight.bold,
-                    ),
-                  )
-                : TextField(
-                    controller: _searchController,
-                    decoration: InputDecoration(
-                      hintText: _currentFolderId == null ? 'Search folders...' : 'Search notes...',
-                      prefixIcon: Icon(Icons.search),
-                      border: OutlineInputBorder(
-                        borderRadius: BorderRadius.circular(8.0),
-                        borderSide: BorderSide.none,
+            child:
+                _selectedNoteIndex != null && !_isAddingNote
+                    ? Text(
+                      'Note Details',
+                      style: TextStyle(
+                        fontSize: 20,
+                        fontWeight: FontWeight.bold,
                       ),
-                      filled: true,
-                      fillColor: Colors.white,
+                    )
+                    : TextField(
+                      controller: _searchController,
+                      decoration: InputDecoration(
+                        hintText:
+                            _currentFolderId == null
+                                ? 'Search folders...'
+                                : 'Search notes...',
+                        prefixIcon: Icon(Icons.search),
+                        border: OutlineInputBorder(
+                          borderRadius: BorderRadius.circular(8.0),
+                          borderSide: BorderSide.none,
+                        ),
+                        filled: true,
+                        fillColor: Colors.white,
+                      ),
+                      onChanged: (value) {
+                        setState(
+                          () {},
+                        ); // Rebuild the UI when search text changes
+                      },
                     ),
-                    onChanged: (value) {
-                      setState(() {}); // Rebuild the UI when search text changes
-                    },
-                  ),
           ),
         ),
-        body: _currentFolderId == null ? _buildFoldersView() : _buildNotesView(),
+        body:
+            _currentFolderId == null ? _buildFoldersView() : _buildNotesView(),
         floatingActionButton: FloatingActionButton(
           onPressed: () {
             setState(() {
@@ -713,9 +753,11 @@ void _resetForm() {
             builder: (context, child) {
               return Transform.rotate(
                 angle: (_rotationAnimation.value * 3.14159) + (3.14159 / 2),
-                child: Icon(_currentFolderId == null 
-                  ? (_isAddingFolder ? Icons.remove : Icons.add)
-                  : Icons.add),
+                child: Icon(
+                  _currentFolderId == null
+                      ? (_isAddingFolder ? Icons.remove : Icons.add)
+                      : Icons.add,
+                ),
               );
             },
           ),
@@ -733,7 +775,7 @@ void _resetForm() {
             child: Column(
               children: [
                 Row(
-        children: [
+                  children: [
                     Expanded(
                       child: TextField(
                         controller: _folderNameController,
@@ -741,7 +783,10 @@ void _resetForm() {
                         decoration: InputDecoration(
                           labelText: 'Folder Name',
                           labelStyle: TextStyle(fontSize: 16),
-                          contentPadding: EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+                          contentPadding: EdgeInsets.symmetric(
+                            horizontal: 16,
+                            vertical: 12,
+                          ),
                           border: OutlineInputBorder(),
                           isDense: true,
                         ),
@@ -764,7 +809,10 @@ void _resetForm() {
                       style: ElevatedButton.styleFrom(
                         backgroundColor: Theme.of(context).primaryColor,
                         foregroundColor: Colors.white,
-                        padding: EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+                        padding: EdgeInsets.symmetric(
+                          horizontal: 16,
+                          vertical: 12,
+                        ),
                         shape: RoundedRectangleBorder(
                           borderRadius: BorderRadius.circular(8),
                         ),
@@ -775,11 +823,11 @@ void _resetForm() {
               ],
             ),
           ),
-          Expanded(
-            child: ListView.builder(
+        Expanded(
+          child: ListView.builder(
             padding: EdgeInsets.all(16),
             itemCount: _filteredFolders.length,
-              itemBuilder: (context, index) {
+            itemBuilder: (context, index) {
               return Container(
                 height: 70,
                 margin: EdgeInsets.only(bottom: 8),
@@ -794,7 +842,9 @@ void _resetForm() {
                       children: [
                         Padding(
                           padding: EdgeInsets.all(8),
-                          child: _buildFolderIcon(_filteredFolders[index]['icon']),
+                          child: _buildFolderIcon(
+                            _filteredFolders[index]['icon'],
+                          ),
                         ),
                         Expanded(
                           child: Text(
@@ -808,64 +858,84 @@ void _resetForm() {
                           ),
                         ),
                         Row(
-                      children: [
-                        IconButton(
-                              icon: Icon(Icons.share, color: Theme.of(context).primaryColor),
-                              onPressed: () => _showShareConfirmationDialog(
-                                _filteredFolders[index]['id'],
-                                _filteredFolders[index]['name'],
-                                _filteredFolders[index]['icon'],
+                          children: [
+                            IconButton(
+                              icon: Icon(
+                                Icons.share,
+                                color: Theme.of(context).primaryColor,
                               ),
-                        ),
-                        IconButton(
-                              icon: Icon(Icons.delete, color: Colors.red, size: 20),
-                              onPressed: () => _deleteFolder(_filteredFolders[index]['id']),
+                              onPressed:
+                                  () => _showShareConfirmationDialog(
+                                    _filteredFolders[index]['id'],
+                                    _filteredFolders[index]['name'],
+                                    _filteredFolders[index]['icon'],
+                                  ),
+                            ),
+                            IconButton(
+                              icon: Icon(
+                                Icons.delete,
+                                color: Colors.red,
+                                size: 20,
+                              ),
+                              onPressed:
+                                  () => _deleteFolder(
+                                    _filteredFolders[index]['id'],
+                                  ),
+                            ),
+                          ],
                         ),
                       ],
-                        ),
-                      ],
-                    ),
                     ),
                   ),
-                );
-              },
-            ),
+                ),
+              );
+            },
           ),
+        ),
       ],
     );
   }
 
-  void _showShareConfirmationDialog(String folderId, String folderName, String icon) {
+  void _showShareConfirmationDialog(
+    String folderId,
+    String folderName,
+    String icon,
+  ) {
     showDialog(
       context: context,
-      builder: (context) => AlertDialog(
-        title: Text('Share Folder'),
-        content: Text('Are you sure you want to share "$folderName" with the community?'),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(context),
-            child: Text('Cancel'),
-          ),
-          ElevatedButton(
-            onPressed: () {
-              Navigator.pop(context);
-              _shareFolder(folderId, folderName, icon);
-            },
-            style: ElevatedButton.styleFrom(
-              backgroundColor: Theme.of(context).primaryColor,
-              foregroundColor: Colors.white,
+      builder:
+          (context) => AlertDialog(
+            title: Text('Share Folder'),
+            content: Text(
+              'Are you sure you want to share "$folderName" with the community?',
             ),
-            child: Text('Share'),
+            actions: [
+              TextButton(
+                onPressed: () => Navigator.pop(context),
+                child: Text('Cancel'),
+              ),
+              ElevatedButton(
+                onPressed: () {
+                  Navigator.pop(context);
+                  _shareFolder(folderId, folderName, icon);
+                },
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: Theme.of(context).primaryColor,
+                  foregroundColor: Colors.white,
+                ),
+                child: Text('Share'),
+              ),
+            ],
           ),
-        ],
-      ),
     );
   }
 
   Widget _buildNotesView() {
-    String currentFolderName = _folders
-        .firstWhere((folder) => folder['id'] == _currentFolderId,
-            orElse: () => {'name': 'Unknown Folder'})['name'];
+    String currentFolderName =
+        _folders.firstWhere(
+          (folder) => folder['id'] == _currentFolderId,
+          orElse: () => {'name': 'Unknown Folder'},
+        )['name'];
 
     if (_selectedNoteIndex != null && !_isAddingNote) {
       return Column(
@@ -873,18 +943,15 @@ void _resetForm() {
           ListTile(
             leading: IconButton(
               icon: Icon(Icons.arrow_back),
-                onPressed: () {
-                  setState(() {
+              onPressed: () {
+                setState(() {
                   _selectedNoteIndex = null;
-                  });
-                },
+                });
+              },
             ),
             title: Text(
               _filteredNotes[_selectedNoteIndex!]['title'],
-              style: TextStyle(
-                fontSize: 20,
-                fontWeight: FontWeight.bold,
-              ),
+              style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
             ),
           ),
           Expanded(
@@ -902,7 +969,9 @@ void _resetForm() {
                       decoration: BoxDecoration(
                         borderRadius: BorderRadius.circular(8),
                         image: DecorationImage(
-                          image: NetworkImage(_filteredNotes[_selectedNoteIndex!]['imageUrl']),
+                          image: NetworkImage(
+                            _filteredNotes[_selectedNoteIndex!]['imageUrl'],
+                          ),
                           fit: BoxFit.cover,
                         ),
                       ),
@@ -934,8 +1003,8 @@ void _resetForm() {
             },
           ),
           title: Text(currentFolderName),
-            ),
-          if (_isAddingNote)
+        ),
+        if (_isAddingNote)
           Expanded(
             child: SingleChildScrollView(
               padding: EdgeInsets.all(16),
@@ -957,7 +1026,9 @@ void _resetForm() {
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
                           Text(
-                            _editingIndex != null ? 'Edit Note' : 'Create New Note',
+                            _editingIndex != null
+                                ? 'Edit Note'
+                                : 'Create New Note',
                             style: TextStyle(
                               fontSize: 20,
                               fontWeight: FontWeight.bold,
@@ -965,8 +1036,8 @@ void _resetForm() {
                             ),
                           ),
                           SizedBox(height: 24),
-                  TextField(
-                    controller: _titleController,
+                          TextField(
+                            controller: _titleController,
                             decoration: InputDecoration(
                               labelText: 'Title',
                               hintText: 'Enter a title for your note',
@@ -975,21 +1046,46 @@ void _resetForm() {
                             ),
                           ),
                           SizedBox(height: 16),
-                  TextField(
-                    controller: _codeController,
+                          TextField(
+                            controller: _codeController,
                             decoration: InputDecoration(
                               labelText: 'Code Snippet',
-                              hintText: 'Enter your code here. Use --- to create code blocks',
+                              hintText:
+                                  'Enter your code here. Use --- to create code blocks',
                               border: OutlineInputBorder(),
                               prefixIcon: Icon(Icons.code),
                               alignLabelWithHint: true,
                             ),
-                            style: TextStyle(
-                              fontSize: 17,
-                            ),
+                            style: TextStyle(fontSize: 17),
                             maxLines: 8,
                           ),
                           SizedBox(height: 24),
+                          // Add tag selection dropdown
+                          DropdownButtonFormField<String>(
+                            value: _selectedTag,
+                            decoration: InputDecoration(
+                              labelText: 'Tag',
+                              border: OutlineInputBorder(),
+                            ),
+                            items:
+                                _availableTags.map((String tag) {
+                                  return DropdownMenuItem<String>(
+                                    value: tag,
+                                    child: Text(
+                                      tag.substring(0, 1).toUpperCase() +
+                                          tag.substring(1),
+                                    ), // Capitalize first letter
+                                  );
+                                }).toList(),
+                            onChanged: (String? newValue) {
+                              if (newValue != null) {
+                                setState(() {
+                                  _selectedTag = newValue;
+                                });
+                              }
+                            },
+                          ),
+                          SizedBox(height: 16),
                           if (_editingIndex == null) ...[
                             Text(
                               'Add Image (Optional)',
@@ -999,66 +1095,76 @@ void _resetForm() {
                               ),
                             ),
                             SizedBox(height: 12),
-                  _image != null
+                            _image != null
                                 ? Stack(
-                                    children: [
-                                      Container(
-                                        height: 120,
-                          width: double.infinity,
-                          decoration: BoxDecoration(
-                                          border: Border.all(color: Colors.grey.shade300),
-                                          borderRadius: BorderRadius.circular(8),
-                          ),
-                                        child: ClipRRect(
-                                          borderRadius: BorderRadius.circular(8),
-                          child: Image.file(
-                            _image!,
-                                            fit: BoxFit.cover,
-                                          ),
+                                  children: [
+                                    Container(
+                                      height: 120,
+                                      width: double.infinity,
+                                      decoration: BoxDecoration(
+                                        border: Border.all(
+                                          color: Colors.grey.shade300,
+                                        ),
+                                        borderRadius: BorderRadius.circular(8),
+                                      ),
+                                      child: ClipRRect(
+                                        borderRadius: BorderRadius.circular(8),
+                                        child: Image.file(
+                                          _image!,
+                                          fit: BoxFit.cover,
                                         ),
                                       ),
-                                      Positioned(
-                                        top: 8,
-                                        right: 8,
-                                        child: IconButton(
-                                          icon: Icon(Icons.close, color: Colors.white),
-                                          style: IconButton.styleFrom(
-                                            backgroundColor: Colors.black54,
-                                          ),
-                                          onPressed: _removeImage,
-                                        ),
-                                      ),
-                                    ],
-                                  )
-                                : Container(
-                                    height: 120,
-                              width: double.infinity,
-                              decoration: BoxDecoration(
-                                      border: Border.all(color: Colors.grey.shade300),
-                                      borderRadius: BorderRadius.circular(8),
                                     ),
-                                    child: Center(
-                                      child: Column(
-                                        mainAxisAlignment: MainAxisAlignment.center,
-                                        children: [
-                                          Icon(
-                                            Icons.image,
-                                            size: 32,
-                                            color: Colors.grey.shade400,
-                                          ),
-                                          SizedBox(height: 8),
-                                          Text(
-                                            "No image selected",
-                                            style: TextStyle(
-                                              color: Colors.grey.shade600,
-                                            ),
-                                          ),
-                                        ],
+                                    Positioned(
+                                      top: 8,
+                                      right: 8,
+                                      child: IconButton(
+                                        icon: Icon(
+                                          Icons.close,
+                                          color: Colors.white,
+                                        ),
+                                        style: IconButton.styleFrom(
+                                          backgroundColor: Colors.black54,
+                                        ),
+                                        onPressed: _removeImage,
                                       ),
+                                    ),
+                                  ],
+                                )
+                                : Container(
+                                  height: 120,
+                                  width: double.infinity,
+                                  decoration: BoxDecoration(
+                                    border: Border.all(
+                                      color: Colors.grey.shade300,
+                                    ),
+                                    borderRadius: BorderRadius.circular(8),
+                                  ),
+                                  child: Center(
+                                    child: Column(
+                                      mainAxisAlignment:
+                                          MainAxisAlignment.center,
+                                      children: [
+                                        Icon(
+                                          Icons.image,
+                                          size: 32,
+                                          color: Colors.grey.shade400,
+                                        ),
+                                        SizedBox(height: 8),
+                                        Text(
+                                          "No image selected",
+                                          style: TextStyle(
+                                            color: Colors.grey.shade600,
+                                          ),
+                                        ),
+                                      ],
                                     ),
                                   ),
+                                ),
                           ],
-                          if (_editingIndex != null && (_notes[_editingIndex!]['imageUrl'] != null || _image != null)) ...[
+                          if (_editingIndex != null &&
+                              (_notes[_editingIndex!]['imageUrl'] != null ||
+                                  _image != null)) ...[
                             SizedBox(height: 24),
                             Stack(
                               children: [
@@ -1066,12 +1172,18 @@ void _resetForm() {
                                   height: 120,
                                   width: double.infinity,
                                   decoration: BoxDecoration(
-                                    border: Border.all(color: Colors.grey.shade300),
+                                    border: Border.all(
+                                      color: Colors.grey.shade300,
+                                    ),
                                     borderRadius: BorderRadius.circular(8),
                                     image: DecorationImage(
-                                      image: _image != null
-                                          ? FileImage(_image!) as ImageProvider
-                                          : NetworkImage(_notes[_editingIndex!]['imageUrl']),
+                                      image:
+                                          _image != null
+                                              ? FileImage(_image!)
+                                                  as ImageProvider
+                                              : NetworkImage(
+                                                _notes[_editingIndex!]['imageUrl'],
+                                              ),
                                       fit: BoxFit.cover,
                                     ),
                                   ),
@@ -1080,7 +1192,10 @@ void _resetForm() {
                                   top: 8,
                                   right: 8,
                                   child: IconButton(
-                                    icon: Icon(Icons.close, color: Colors.white),
+                                    icon: Icon(
+                                      Icons.close,
+                                      color: Colors.white,
+                                    ),
                                     style: IconButton.styleFrom(
                                       backgroundColor: Colors.black54,
                                     ),
@@ -1093,132 +1208,144 @@ void _resetForm() {
                           SizedBox(height: 16),
                           Row(
                             mainAxisAlignment: MainAxisAlignment.end,
-                    children: [
-                              if (_editingIndex == null || _notes[_editingIndex!]['imageUrl'] != null || _image != null || _editingIndex != null)
+                            children: [
+                              if (_editingIndex == null ||
+                                  _notes[_editingIndex!]['imageUrl'] != null ||
+                                  _image != null ||
+                                  _editingIndex != null)
                                 TextButton.icon(
-                        onPressed: _pickImage,
+                                  onPressed: _pickImage,
                                   icon: Icon(Icons.image),
-                                  label: Text(_editingIndex != null ? "Change Image" : "Pick Image"),
+                                  label: Text(
+                                    _editingIndex != null
+                                        ? "Change Image"
+                                        : "Pick Image",
+                                  ),
                                   style: TextButton.styleFrom(
-                                    foregroundColor: Theme.of(context).primaryColor,
-                      ),
+                                    foregroundColor:
+                                        Theme.of(context).primaryColor,
+                                  ),
                                 ),
                               SizedBox(width: 16),
                               ElevatedButton.icon(
-                        onPressed: _saveNote,
-                                icon: Icon(_editingIndex != null ? Icons.edit : Icons.save),
-                                label: Text(_editingIndex != null ? "Update Note" : "Save Note"),
+                                onPressed: _saveNote,
+                                icon: Icon(
+                                  _editingIndex != null
+                                      ? Icons.edit
+                                      : Icons.save,
+                                ),
+                                label: Text(
+                                  _editingIndex != null
+                                      ? "Update Note"
+                                      : "Save Note",
+                                ),
                                 style: ElevatedButton.styleFrom(
-                                  backgroundColor: Theme.of(context).primaryColor,
+                                  backgroundColor:
+                                      Theme.of(context).primaryColor,
                                   foregroundColor: Colors.white,
-                                  padding: EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+                                  padding: EdgeInsets.symmetric(
+                                    horizontal: 16,
+                                    vertical: 12,
+                                  ),
                                   shape: RoundedRectangleBorder(
                                     borderRadius: BorderRadius.circular(8),
                                   ),
                                 ),
+                              ),
+                            ],
+                          ),
+                        ],
                       ),
-                    ],
+                    ),
                   ),
                 ],
-                      ),
-              ),
-            ),
-        ],
               ),
             ),
           ),
         if (!_isAddingNote)
           Expanded(
-            child: _filteredNotes.isEmpty
-                ? Center(
-                    child: Text(
-                      'No notes in this folder',
-                      style: TextStyle(
-                        fontSize: 16,
-                        color: Colors.grey[600],
+            child:
+                _filteredNotes.isEmpty
+                    ? Center(
+                      child: Text(
+                        'No notes in this folder',
+                        style: TextStyle(fontSize: 16, color: Colors.grey[600]),
                       ),
+                    )
+                    : ListView.builder(
+                      itemCount: _filteredNotes.length,
+                      itemBuilder: (context, index) {
+                        return _buildNoteCard(_filteredNotes[index], index);
+                      },
                     ),
-                  )
-                : ListView.builder(
-                    itemCount: _filteredNotes.length,
-                    itemBuilder: (context, index) {
-                      return Card(
-                        margin: EdgeInsets.all(8.0),
-                        child: InkWell(
-                          onTap: () {
-                            setState(() {
-                              _selectedNoteIndex = index;
-                            });
-                          },
-                          child: Padding(
-                            padding: EdgeInsets.all(16.0),
-                            child: Column(
-                              crossAxisAlignment: CrossAxisAlignment.start,
-                              children: [
-                                Row(
-                                  children: [
-                                    if (_filteredNotes[index]['imageUrl'] != null)
-                                      Container(
-                                        width: 50,
-                                        height: 50,
-                                        margin: EdgeInsets.only(right: 16),
-                                        decoration: BoxDecoration(
-                                          borderRadius: BorderRadius.circular(8),
-                                          image: DecorationImage(
-                                            image: NetworkImage(_filteredNotes[index]['imageUrl']),
-                                            fit: BoxFit.cover,
-                                          ),
-                                        ),
-                                      ),
-                                    Expanded(
-                                      child: Column(
-                                        crossAxisAlignment: CrossAxisAlignment.start,
-                                        children: [
-                                          Text(
-                                            _filteredNotes[index]['title'],
-                                            style: TextStyle(
-                                              fontSize: 18,
-                                              fontWeight: FontWeight.bold,
-                                              color: Colors.black87,
-                                            ),
-                                          ),
-                                          SizedBox(height: 4),
-                                          _buildFormattedText(_filteredNotes[index]['code']),
-                                        ],
-                                      ),
-                                    ),
-                                  ],
-                                ),
-                                Row(
-                                  mainAxisAlignment: MainAxisAlignment.end,
-                                  children: [
-                                    IconButton(
-                                      icon: Icon(Icons.edit, color: Colors.blue),
-                                      onPressed: () => _editNote(index),
-                                    ),
-                                    IconButton(
-                                      icon: Icon(Icons.delete, color: Colors.red),
-                                      onPressed: () => _deleteNote(index),
-                                    ),
-                                  ],
-                                ),
-                              ],
-                            ),
-                          ),
-                        ),
-                      );
-                    },
-                  ),
           ),
       ],
     );
+  }
+
+  Widget _buildNoteCard(Map<String, dynamic> note, int index) {
+    return Card(
+      elevation: 2,
+      margin: EdgeInsets.symmetric(vertical: 8, horizontal: 16),
+      child: ListTile(
+        title: Text(
+          note['title'] ?? '',
+          style: TextStyle(fontWeight: FontWeight.bold),
+        ),
+        subtitle: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            if (note['code'] != null && note['code'].isNotEmpty)
+              Text(note['code'], maxLines: 3, overflow: TextOverflow.ellipsis),
+            SizedBox(height: 8),
+            // Add tag chip
+            Chip(
+              label: Text(
+                (note['tag'] ?? 'dummies').substring(0, 1).toUpperCase() +
+                    (note['tag'] ?? 'dummies').substring(1),
+                style: TextStyle(color: Colors.white, fontSize: 12),
+              ),
+              backgroundColor: _getTagColor(note['tag'] ?? 'dummies'),
+            ),
+          ],
+        ),
+        trailing: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            IconButton(
+              icon: Icon(Icons.edit),
+              onPressed: () => _editNote(index),
+            ),
+            IconButton(
+              icon: Icon(Icons.delete),
+              onPressed: () => _deleteNote(index),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Color _getTagColor(String tag) {
+    switch (tag) {
+      case 'dummies':
+        return Colors.green;
+      case 'basic':
+        return Colors.blue;
+      case 'advanced':
+        return Colors.orange;
+      case 'externalLibs':
+        return Colors.purple;
+      default:
+        return Colors.grey;
+    }
   }
 
   Widget _buildIconSelectionDialog() {
     return AlertDialog(
       title: Text('Select Programming Language'),
       content: SingleChildScrollView(
-              child: Column(
+        child: Column(
           children: [
             for (var i = 0; i < _availableIcons.length; i += 3)
               Row(
@@ -1240,9 +1367,12 @@ void _resetForm() {
                             height: 64,
                             padding: EdgeInsets.all(12),
                             decoration: BoxDecoration(
-                              color: _selectedIcon == _availableIcons[j]
-                                  ? Theme.of(context).primaryColor.withOpacity(0.1)
-                                  : Colors.transparent,
+                              color:
+                                  _selectedIcon == _availableIcons[j]
+                                      ? Theme.of(
+                                        context,
+                                      ).primaryColor.withOpacity(0.1)
+                                      : Colors.transparent,
                               borderRadius: BorderRadius.circular(8),
                             ),
                             child: SvgPicture.asset(
@@ -1257,12 +1387,12 @@ void _resetForm() {
                           ),
                         ],
                       ),
-                      ),
-                    ],
-                  ),
+                    ),
                 ],
               ),
-            ),
+          ],
+        ),
+      ),
     );
   }
 
@@ -1304,194 +1434,202 @@ void _resetForm() {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       mainAxisSize: MainAxisSize.min,
-      children: codeBlocks.asMap().entries.map((entry) {
-        final index = entry.key;
-        final block = entry.value;
-        
-        if (index % 2 == 1) { // This is a code block (odd indices)
-          return Container(
-            width: double.infinity,
-            padding: EdgeInsets.all(8),
-            decoration: BoxDecoration(
-              color: Colors.grey[100],
-              borderRadius: BorderRadius.circular(8),
-              border: Border.all(color: Colors.grey[300]!),
-            ),
-            child: HighlightView(
-              block.trim(),
-              language: 'cpp', // Default to C++ for now
-              theme: githubTheme,
-              padding: EdgeInsets.zero,
-              textStyle: TextStyle(
-                fontFamily: 'monospace',
-                fontSize: 14,
-              ),
-            ),
-          );
-        } else { // This is regular text (even indices)
-          final spans = <TextSpan>[];
-          var currentText = block;
-          
-          // Process bold text
-          while (currentText.contains('**')) {
-            final partsBefore = currentText.split('**');
-            if (partsBefore.length > 1) {
-              spans.add(TextSpan(
-                text: partsBefore[0],
-                style: TextStyle(
-                  fontSize: 16,
-                  height: 1.0,
-                  color: Colors.black87,
+      children:
+          codeBlocks.asMap().entries.map((entry) {
+            final index = entry.key;
+            final block = entry.value;
+
+            if (index % 2 == 1) {
+              // This is a code block (odd indices)
+              return Container(
+                width: double.infinity,
+                padding: EdgeInsets.all(8),
+                decoration: BoxDecoration(
+                  color: Colors.grey[100],
+                  borderRadius: BorderRadius.circular(8),
+                  border: Border.all(color: Colors.grey[300]!),
                 ),
-              ));
-              spans.add(TextSpan(
-                text: partsBefore[1],
-                style: TextStyle(
-                  fontSize: 16,
-                  height: 1.0,
-                  color: Colors.black87,
-                  fontWeight: FontWeight.bold,
+                child: HighlightView(
+                  block.trim(),
+                  language: 'cpp', // Default to C++ for now
+                  theme: githubTheme,
+                  padding: EdgeInsets.zero,
+                  textStyle: TextStyle(fontFamily: 'monospace', fontSize: 14),
                 ),
-              ));
-              currentText = partsBefore.sublist(2).join('**');
+              );
             } else {
-              break;
-            }
-          }
-          
-          // Process underlined text
-          while (currentText.contains('__')) {
-            final partsBefore = currentText.split('__');
-            if (partsBefore.length > 1) {
-              spans.add(TextSpan(
-                text: partsBefore[0],
+              // This is regular text (even indices)
+              final spans = <TextSpan>[];
+              var currentText = block;
+
+              // Process bold text
+              while (currentText.contains('**')) {
+                final partsBefore = currentText.split('**');
+                if (partsBefore.length > 1) {
+                  spans.add(
+                    TextSpan(
+                      text: partsBefore[0],
+                      style: TextStyle(
+                        fontSize: 16,
+                        height: 1.0,
+                        color: Colors.black87,
+                      ),
+                    ),
+                  );
+                  spans.add(
+                    TextSpan(
+                      text: partsBefore[1],
+                      style: TextStyle(
+                        fontSize: 16,
+                        height: 1.0,
+                        color: Colors.black87,
+                        fontWeight: FontWeight.bold,
+                      ),
+                    ),
+                  );
+                  currentText = partsBefore.sublist(2).join('**');
+                } else {
+                  break;
+                }
+              }
+
+              // Process underlined text
+              while (currentText.contains('__')) {
+                final partsBefore = currentText.split('__');
+                if (partsBefore.length > 1) {
+                  spans.add(
+                    TextSpan(
+                      text: partsBefore[0],
+                      style: TextStyle(
+                        fontSize: 16,
+                        height: 1.0,
+                        color: Colors.black87,
+                      ),
+                    ),
+                  );
+                  spans.add(
+                    TextSpan(
+                      text: partsBefore[1],
+                      style: TextStyle(
+                        fontSize: 16,
+                        height: 1.0,
+                        color: Colors.black87,
+                        decoration: TextDecoration.underline,
+                      ),
+                    ),
+                  );
+                  currentText = partsBefore.sublist(2).join('__');
+                } else {
+                  break;
+                }
+              }
+
+              // Add any remaining text
+              if (currentText.isNotEmpty) {
+                spans.add(
+                  TextSpan(
+                    text: currentText,
+                    style: TextStyle(
+                      fontSize: 16,
+                      height: 1.0,
+                      color: Colors.black87,
+                    ),
+                  ),
+                );
+              }
+
+              return SelectableText.rich(
+                TextSpan(children: spans),
                 style: TextStyle(
                   fontSize: 16,
                   height: 1.0,
                   color: Colors.black87,
                 ),
-              ));
-              spans.add(TextSpan(
-                text: partsBefore[1],
-                style: TextStyle(
-                  fontSize: 16,
-                  height: 1.0,
-                  color: Colors.black87,
-                  decoration: TextDecoration.underline,
-                ),
-              ));
-              currentText = partsBefore.sublist(2).join('__');
-            } else {
-              break;
+              );
             }
-          }
-          
-          // Add any remaining text
-          if (currentText.isNotEmpty) {
-            spans.add(TextSpan(
-              text: currentText,
-              style: TextStyle(
-                fontSize: 16,
-                height: 1.0,
-                color: Colors.black87,
-              ),
-            ));
-          }
-          
-          return SelectableText.rich(
-            TextSpan(children: spans),
-            style: TextStyle(
-              fontSize: 16,
-              height: 1.0,
-              color: Colors.black87,
-            ),
-          );
-        }
-      }).toList(),
+          }).toList(),
     );
   }
 
   Widget _buildFormattedText(String text) {
     final spans = <TextSpan>[];
     var currentText = text;
-    
+
     // Split text into lines and filter out empty ones
-    final lines = currentText.split('\n').where((line) => line.trim().isNotEmpty).toList();
+    final lines =
+        currentText
+            .split('\n')
+            .where((line) => line.trim().isNotEmpty)
+            .toList();
     currentText = lines.join('\n');
-    
+
     // Process bold text
     while (currentText.contains('**')) {
       final partsBefore = currentText.split('**');
       if (partsBefore.length > 1) {
-        spans.add(TextSpan(
-          text: partsBefore[0],
-          style: TextStyle(
-            fontSize: 16,
-            height: 1.0,
-            color: Colors.black87,
+        spans.add(
+          TextSpan(
+            text: partsBefore[0],
+            style: TextStyle(fontSize: 16, height: 1.0, color: Colors.black87),
           ),
-        ));
-        spans.add(TextSpan(
-          text: partsBefore[1],
-          style: TextStyle(
-            fontSize: 16,
-            height: 1.0,
-            color: Colors.black87,
-            fontWeight: FontWeight.bold,
+        );
+        spans.add(
+          TextSpan(
+            text: partsBefore[1],
+            style: TextStyle(
+              fontSize: 16,
+              height: 1.0,
+              color: Colors.black87,
+              fontWeight: FontWeight.bold,
+            ),
           ),
-        ));
+        );
         currentText = partsBefore.sublist(2).join('**');
       } else {
         break;
       }
     }
-    
+
     // Process underlined text
     while (currentText.contains('__')) {
       final partsBefore = currentText.split('__');
       if (partsBefore.length > 1) {
-        spans.add(TextSpan(
-          text: partsBefore[0],
-          style: TextStyle(
-            fontSize: 16,
-            height: 1.0,
-            color: Colors.black87,
+        spans.add(
+          TextSpan(
+            text: partsBefore[0],
+            style: TextStyle(fontSize: 16, height: 1.0, color: Colors.black87),
           ),
-        ));
-        spans.add(TextSpan(
-          text: partsBefore[1],
-          style: TextStyle(
-            fontSize: 16,
-            height: 1.0,
-            color: Colors.black87,
-            decoration: TextDecoration.underline,
+        );
+        spans.add(
+          TextSpan(
+            text: partsBefore[1],
+            style: TextStyle(
+              fontSize: 16,
+              height: 1.0,
+              color: Colors.black87,
+              decoration: TextDecoration.underline,
+            ),
           ),
-        ));
+        );
         currentText = partsBefore.sublist(2).join('__');
       } else {
         break;
       }
     }
-    
+
     // Add any remaining text
     if (currentText.isNotEmpty) {
-      spans.add(TextSpan(
-        text: currentText,
-        style: TextStyle(
-          fontSize: 16,
-          height: 1.0,
-          color: Colors.black87,
+      spans.add(
+        TextSpan(
+          text: currentText,
+          style: TextStyle(fontSize: 16, height: 1.0, color: Colors.black87),
         ),
-      ));
+      );
     }
-    
+
     return Text.rich(
       TextSpan(children: spans),
-      style: TextStyle(
-        fontSize: 16,
-        height: 1.0,
-        color: Colors.black87,
-      ),
+      style: TextStyle(fontSize: 16, height: 1.0, color: Colors.black87),
       maxLines: 2,
       overflow: TextOverflow.ellipsis,
     );
