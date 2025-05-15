@@ -71,3 +71,10 @@ class AuthWrapper extends StatelessWidget {
     );
   }
 }
+
+
+//test1@gmail.com
+//mangoo
+
+//test2@gmail.com
+//manga1
