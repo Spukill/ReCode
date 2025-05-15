@@ -4,6 +4,12 @@ import 'package:flutter_svg/flutter_svg.dart';
 import 'package:flutter_highlight/flutter_highlight.dart';
 import 'package:flutter_highlight/themes/github.dart';
 
+extension StringExtensions on String {
+  String capitalize() {
+    return "${this[0].toUpperCase()}${this.substring(1)}";
+  }
+}
+
 class RecommendedNotesPage extends StatefulWidget {
   final String language;
 
@@ -181,7 +187,7 @@ class _RecommendedNotesPageState extends State<RecommendedNotesPage> {
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        title: Text('${widget.language} Notes'),
+        title: Text('${(widget.language).capitalize()} Notes'),
         leading: IconButton(
           icon: Icon(Icons.arrow_back),
           onPressed: () => Navigator.pop(context),
@@ -205,17 +211,15 @@ class _RecommendedNotesPageState extends State<RecommendedNotesPage> {
     if (_filteredNotes.isEmpty) {
       return Center(
         child: Text(
-          _selectedTag == null
-              ? 'No notes available for ${widget.language}'
-              : 'No ${_selectedTag} notes available for ${widget.language}',
+          'No notes found',
           style: TextStyle(fontSize: 16, color: Colors.grey[600]),
         ),
       );
     }
 
     return ListView.builder(
-      itemCount: _filteredNotes.length,
       padding: EdgeInsets.all(16),
+      itemCount: _filteredNotes.length,
       itemBuilder: (context, index) {
         final note = _filteredNotes[index];
         return Card(
@@ -225,51 +229,30 @@ class _RecommendedNotesPageState extends State<RecommendedNotesPage> {
             onTap: () {
               setState(() => _selectedNoteIndex = index);
             },
-            child: Padding(
-              padding: EdgeInsets.all(16),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Row(
-                    children: [
-                      if (note['imageUrl'] != null)
-                        Container(
-                          width: 60,
-                          height: 60,
-                          margin: EdgeInsets.only(right: 16),
-                          decoration: BoxDecoration(
-                            borderRadius: BorderRadius.circular(8),
-                            image: DecorationImage(
-                              image: NetworkImage(note['imageUrl']),
-                              fit: BoxFit.cover,
-                            ),
+            child: ListTile(
+              leading:
+                  note['imageUrl'] != null
+                      ? Container(
+                        width: 50,
+                        height: 50,
+                        decoration: BoxDecoration(
+                          borderRadius: BorderRadius.circular(8),
+                          image: DecorationImage(
+                            image: NetworkImage(note['imageUrl']),
+                            fit: BoxFit.cover,
                           ),
                         ),
-                      Expanded(
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            Text(
-                              note['title'],
-                              style: TextStyle(
-                                fontSize: 18,
-                                fontWeight: FontWeight.bold,
-                              ),
-                            ),
-                            SizedBox(height: 4),
-                            Text(
-                              'By ${note['ownerName']}',
-                              style: TextStyle(
-                                color: Colors.grey[600],
-                                fontSize: 14,
-                              ),
-                            ),
-                          ],
-                        ),
-                      ),
-                    ],
-                  ),
-                  SizedBox(height: 8),
+                      )
+                      : null,
+              title: Text(
+                note['title'],
+                style: TextStyle(fontWeight: FontWeight.bold),
+              ),
+              subtitle: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text('By ${note['ownerName']}'),
+                  SizedBox(height: 4),
                   Chip(
                     label: Text(
                       note['tag'].toString().substring(0, 1).toUpperCase() +
@@ -323,18 +306,100 @@ class _RecommendedNotesPageState extends State<RecommendedNotesPage> {
                       ),
                     ),
                   ),
-                HighlightView(
-                  note['code'],
-                  language: widget.language.toLowerCase(),
-                  theme: githubTheme,
-                  padding: EdgeInsets.all(16),
-                  textStyle: TextStyle(fontFamily: 'monospace', fontSize: 14),
-                ),
+                _buildCodeBlock(note['code']),
               ],
             ),
           ),
         ),
       ],
+    );
+  }
+
+  Widget _buildCodeBlock(String text) {
+    final codeBlocks = text.split('---');
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      mainAxisSize: MainAxisSize.min,
+      children:
+          codeBlocks.asMap().entries.map((entry) {
+            final index = entry.key;
+            final block = entry.value;
+
+            if (index % 2 == 1) {
+              // This is a code block (odd indices)
+              return Container(
+                width: double.infinity,
+                padding: EdgeInsets.all(8),
+                margin: EdgeInsets.symmetric(vertical: 8),
+                decoration: BoxDecoration(
+                  color: Colors.grey[100],
+                  borderRadius: BorderRadius.circular(8),
+                  border: Border.all(color: Colors.grey[300]!),
+                ),
+                child: HighlightView(
+                  block.trim(),
+                  language: widget.language == 'c++' ? 'cpp' : widget.language,
+                  theme: githubTheme,
+                  padding: EdgeInsets.zero,
+                  textStyle: TextStyle(fontFamily: 'monospace', fontSize: 14),
+                ),
+              );
+            } else {
+              // This is regular text (even indices)
+              final spans = <TextSpan>[];
+              var currentText = block;
+
+              // Process bold text
+              while (currentText.contains('**')) {
+                final partsBefore = currentText.split('**');
+                if (partsBefore.length > 1) {
+                  spans.add(
+                    TextSpan(
+                      text: partsBefore[0],
+                      style: TextStyle(
+                        fontSize: 16,
+                        height: 1.5,
+                        color: Colors.black87,
+                      ),
+                    ),
+                  );
+                  spans.add(
+                    TextSpan(
+                      text: partsBefore[1],
+                      style: TextStyle(
+                        fontSize: 16,
+                        height: 1.5,
+                        color: Colors.black87,
+                        fontWeight: FontWeight.bold,
+                      ),
+                    ),
+                  );
+                  currentText = partsBefore.sublist(2).join('**');
+                } else {
+                  break;
+                }
+              }
+
+              // Add any remaining text
+              if (currentText.isNotEmpty) {
+                spans.add(
+                  TextSpan(
+                    text: currentText,
+                    style: TextStyle(
+                      fontSize: 16,
+                      height: 1.5,
+                      color: Colors.black87,
+                    ),
+                  ),
+                );
+              }
+
+              return Padding(
+                padding: EdgeInsets.symmetric(vertical: 8),
+                child: SelectableText.rich(TextSpan(children: spans)),
+              );
+            }
+          }).toList(),
     );
   }
 }

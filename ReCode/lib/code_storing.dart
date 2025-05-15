@@ -1240,6 +1240,7 @@ class _CodeStoringPageState extends State<CodeStoringPage>
   }
 
   Widget _buildNoteDetails() {
+    final note = _filteredNotes[_selectedNoteIndex!];
     return Column(
       children: [
         ListTile(
@@ -1250,8 +1251,21 @@ class _CodeStoringPageState extends State<CodeStoringPage>
             },
           ),
           title: Text(
-            _filteredNotes[_selectedNoteIndex!]['title'],
+            note['title'] ?? '',
             style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
+          ),
+          trailing: Row(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              IconButton(
+                icon: Icon(Icons.edit),
+                onPressed: () => _editNote(_selectedNoteIndex!),
+              ),
+              IconButton(
+                icon: Icon(Icons.delete),
+                onPressed: () => _deleteNote(_selectedNoteIndex!),
+              ),
+            ],
           ),
         ),
         Expanded(
@@ -1261,7 +1275,7 @@ class _CodeStoringPageState extends State<CodeStoringPage>
               crossAxisAlignment: CrossAxisAlignment.start,
               mainAxisAlignment: MainAxisAlignment.start,
               children: [
-                if (_filteredNotes[_selectedNoteIndex!]['imageUrl'] != null)
+                if (note['imageUrl'] != null)
                   Container(
                     width: double.infinity,
                     height: 200,
@@ -1269,14 +1283,25 @@ class _CodeStoringPageState extends State<CodeStoringPage>
                     decoration: BoxDecoration(
                       borderRadius: BorderRadius.circular(8),
                       image: DecorationImage(
-                        image: NetworkImage(
-                          _filteredNotes[_selectedNoteIndex!]['imageUrl'],
-                        ),
+                        image: NetworkImage(note['imageUrl']),
                         fit: BoxFit.cover,
                       ),
                     ),
                   ),
-                _buildCodeBlock(_filteredNotes[_selectedNoteIndex!]['code']),
+                // Add tag chip in details view
+                Padding(
+                  padding: EdgeInsets.only(bottom: 16),
+                  child: Chip(
+                    label: Text(
+                      (note['tag'] ?? 'dummies').substring(0, 1).toUpperCase() +
+                          (note['tag'] ?? 'dummies').substring(1),
+                      style: TextStyle(color: Colors.white),
+                    ),
+                    backgroundColor: _getTagColor(note['tag'] ?? 'dummies'),
+                  ),
+                ),
+                if (note['code'] != null && note['code'].isNotEmpty)
+                  _buildCodeBlock(note['code']),
               ],
             ),
           ),
@@ -1289,40 +1314,52 @@ class _CodeStoringPageState extends State<CodeStoringPage>
     return Card(
       elevation: 2,
       margin: EdgeInsets.symmetric(vertical: 8, horizontal: 16),
-      child: ListTile(
-        title: Text(
-          note['title'] ?? '',
-          style: TextStyle(fontWeight: FontWeight.bold),
-        ),
-        subtitle: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            if (note['code'] != null && note['code'].isNotEmpty)
-              Text(note['code'], maxLines: 3, overflow: TextOverflow.ellipsis),
-            SizedBox(height: 8),
-            // Add tag chip
-            Chip(
-              label: Text(
-                (note['tag'] ?? 'dummies').substring(0, 1).toUpperCase() +
-                    (note['tag'] ?? 'dummies').substring(1),
-                style: TextStyle(color: Colors.white, fontSize: 12),
+      child: InkWell(
+        onTap: () {
+          setState(() {
+            _selectedNoteIndex = index;
+          });
+        },
+        child: ListTile(
+          leading:
+              note['imageUrl'] != null
+                  ? Container(
+                    width: 50,
+                    height: 50,
+                    decoration: BoxDecoration(
+                      borderRadius: BorderRadius.circular(8),
+                      image: DecorationImage(
+                        image: NetworkImage(note['imageUrl']),
+                        fit: BoxFit.cover,
+                      ),
+                    ),
+                  )
+                  : null,
+          title: Text(
+            note['title'] ?? '',
+            style: TextStyle(fontWeight: FontWeight.bold),
+          ),
+          subtitle: Chip(
+            label: Text(
+              (note['tag'] ?? 'dummies').substring(0, 1).toUpperCase() +
+                  (note['tag'] ?? 'dummies').substring(1),
+              style: TextStyle(color: Colors.white, fontSize: 12),
+            ),
+            backgroundColor: _getTagColor(note['tag'] ?? 'dummies'),
+          ),
+          trailing: Row(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              IconButton(
+                icon: Icon(Icons.edit),
+                onPressed: () => _editNote(index),
               ),
-              backgroundColor: _getTagColor(note['tag'] ?? 'dummies'),
-            ),
-          ],
-        ),
-        trailing: Row(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            IconButton(
-              icon: Icon(Icons.edit),
-              onPressed: () => _editNote(index),
-            ),
-            IconButton(
-              icon: Icon(Icons.delete),
-              onPressed: () => _deleteNote(index),
-            ),
-          ],
+              IconButton(
+                icon: Icon(Icons.delete),
+                onPressed: () => _deleteNote(index),
+              ),
+            ],
+          ),
         ),
       ),
     );

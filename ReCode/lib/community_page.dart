@@ -2,7 +2,31 @@ import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter_svg/flutter_svg.dart';
 import 'package:firebase_auth/firebase_auth.dart';
+import 'package:flutter_highlight/flutter_highlight.dart';
+import 'package:flutter_highlight/themes/github.dart';
 import 'raccomandad_note.dart';
+
+class LoadingOverlay extends StatelessWidget {
+  final bool isLoading;
+  final Widget child;
+
+  const LoadingOverlay({Key? key, required this.isLoading, required this.child})
+    : super(key: key);
+
+  @override
+  Widget build(BuildContext context) {
+    return Stack(
+      children: [
+        child,
+        if (isLoading)
+          Container(
+            color: Colors.black.withOpacity(0.5),
+            child: Center(child: CircularProgressIndicator()),
+          ),
+      ],
+    );
+  }
+}
 
 class CodeSharingPage extends StatefulWidget {
   @override
@@ -18,6 +42,15 @@ class _CodeSharingPageState extends State<CodeSharingPage> {
   Map<String, bool> _likingStates =
       {}; // Track animation states for each folder
   int? _selectedNoteIndex;
+
+  final List<Map<String, String>> _availableLanguages = [
+    {'icon': 'assets/icons/c++.svg', 'name': 'C++'},
+    {'icon': 'assets/icons/java.svg', 'name': 'Java'},
+    {'icon': 'assets/icons/python.svg', 'name': 'Python'},
+    {'icon': 'assets/icons/c.svg', 'name': 'C'},
+    {'icon': 'assets/icons/html.svg', 'name': 'HTML'},
+    {'icon': 'assets/icons/flutter.svg', 'name': 'Flutter'},
+  ];
 
   final FirebaseFirestore _firestore = FirebaseFirestore.instance;
   final FirebaseAuth _auth = FirebaseAuth.instance;
@@ -265,67 +298,142 @@ class _CodeSharingPageState extends State<CodeSharingPage> {
     }
   }
 
-  @override
-  Widget build(BuildContext context) {
-    return Scaffold(
-      appBar: AppBar(
-        title: TextField(
-          controller: _searchController,
-          decoration: InputDecoration(
-            hintText: 'Search shared folders...',
-            prefixIcon: Icon(Icons.search),
-            border: OutlineInputBorder(
-              borderRadius: BorderRadius.circular(8.0),
-              borderSide: BorderSide.none,
-            ),
-            filled: true,
-            fillColor: Colors.white,
+  void _showLanguageSelectionDialog() {
+    showDialog(
+      context: context,
+      builder: (BuildContext context) {
+        return Dialog(
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(16),
           ),
-        ),
-      ),
-      body: Column(
-        children: [
-          // Add language icons section
-          Container(
+          child: Container(
             padding: EdgeInsets.all(16),
             child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
+              mainAxisSize: MainAxisSize.min,
               children: [
                 Text(
-                  'Browse by Language',
+                  'Select Programming Language',
                   style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
                 ),
-                SizedBox(height: 16),
-                GridView.count(
-                  shrinkWrap: true,
-                  crossAxisCount: 3,
-                  mainAxisSpacing: 16,
-                  crossAxisSpacing: 16,
-                  children: [
-                    _buildLanguageCard('c++', context),
-                    _buildLanguageCard('java', context),
-                    _buildLanguageCard('python', context),
-                    _buildLanguageCard('c', context),
-                    _buildLanguageCard('html', context),
-                    _buildLanguageCard('flutter', context),
-                  ],
+                SizedBox(height: 20),
+                Container(
+                  width: double.maxFinite,
+                  child: Wrap(
+                    alignment: WrapAlignment.center,
+                    spacing: 16,
+                    runSpacing: 16,
+                    children:
+                        _availableLanguages.map((language) {
+                          return InkWell(
+                            onTap: () {
+                              Navigator.pop(context);
+                              Navigator.push(
+                                context,
+                                MaterialPageRoute(
+                                  builder:
+                                      (context) => RecommendedNotesPage(
+                                        language:
+                                            language['name']!.toLowerCase(),
+                                      ),
+                                ),
+                              );
+                            },
+                            child: Container(
+                              width: 80,
+                              child: Column(
+                                mainAxisSize: MainAxisSize.min,
+                                children: [
+                                  Container(
+                                    width: 50,
+                                    height: 50,
+                                    padding: EdgeInsets.all(8),
+                                    decoration: BoxDecoration(
+                                      color: Colors.grey[100],
+                                      borderRadius: BorderRadius.circular(8),
+                                    ),
+                                    child: SvgPicture.asset(
+                                      language['icon']!,
+                                      color: Theme.of(context).primaryColor,
+                                    ),
+                                  ),
+                                  SizedBox(height: 8),
+                                  Text(
+                                    language['name']!,
+                                    style: TextStyle(fontSize: 14),
+                                    textAlign: TextAlign.center,
+                                  ),
+                                ],
+                              ),
+                            ),
+                          );
+                        }).toList(),
+                  ),
                 ),
               ],
             ),
           ),
-          Divider(height: 1),
-          Expanded(
-            child:
-                _selectedFolderId == null
-                    ? _buildFoldersView()
-                    : _buildNotesView(),
+        );
+      },
+    );
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return LoadingOverlay(
+      isLoading: _isLoading,
+      child: Scaffold(
+        appBar: AppBar(
+          title: Padding(
+            padding: EdgeInsets.only(top: 8.0),
+            child: TextField(
+              controller: _searchController,
+              decoration: InputDecoration(
+                hintText: 'Search folders...',
+                prefixIcon: Icon(Icons.search),
+                border: OutlineInputBorder(
+                  borderRadius: BorderRadius.circular(8.0),
+                  borderSide: BorderSide.none,
+                ),
+                filled: true,
+                fillColor: Colors.white,
+              ),
+            ),
           ),
-        ],
+        ),
+        body: Column(
+          children: [
+            // Language selection button
+            Container(
+              padding: EdgeInsets.all(16),
+              child: ElevatedButton.icon(
+                onPressed: _showLanguageSelectionDialog,
+                icon: Icon(Icons.code),
+                label: Text('Select Programming Language'),
+                style: ElevatedButton.styleFrom(
+                  padding: EdgeInsets.symmetric(horizontal: 24, vertical: 12),
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(8),
+                  ),
+                ),
+              ),
+            ),
+            Expanded(child: _buildFoldersView()),
+          ],
+        ),
       ),
     );
   }
 
   Widget _buildFoldersView() {
+    if (_filteredFolders.isEmpty) {
+      return Center(
+        child: Text(
+          'No folders found',
+          style: TextStyle(fontSize: 16, color: Colors.grey[600]),
+        ),
+      );
+    }
+
     return ListView.builder(
       padding: EdgeInsets.all(16),
       itemCount: _filteredFolders.length,
@@ -357,7 +465,15 @@ class _CodeSharingPageState extends State<CodeSharingPage> {
                 children: [
                   Padding(
                     padding: EdgeInsets.all(8),
-                    child: _buildFolderIcon(folder['icon']),
+                    child: Container(
+                      width: 60,
+                      height: 60,
+                      padding: EdgeInsets.all(8),
+                      child: SvgPicture.asset(
+                        folder['icon'],
+                        color: Theme.of(context).primaryColor,
+                      ),
+                    ),
                   ),
                   Expanded(
                     child: Column(
@@ -481,241 +597,6 @@ class _CodeSharingPageState extends State<CodeSharingPage> {
       },
     );
   }
-
-  Widget _buildNotesView() {
-    String currentFolderName =
-        _sharedFolders.firstWhere(
-          (folder) => folder['id'] == _selectedFolderId,
-          orElse: () => {'name': 'Unknown Folder'},
-        )['name'];
-
-    if (_selectedNoteIndex != null) {
-      return Column(
-        children: [
-          ListTile(
-            leading: IconButton(
-              icon: Icon(Icons.arrow_back),
-              onPressed: () {
-                setState(() {
-                  _selectedNoteIndex = null;
-                });
-              },
-            ),
-            title: Text(
-              _filteredNotes[_selectedNoteIndex!]['title'],
-              style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
-            ),
-          ),
-          Expanded(
-            child: SingleChildScrollView(
-              padding: EdgeInsets.all(16),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                mainAxisAlignment: MainAxisAlignment.start,
-                children: [
-                  if (_filteredNotes[_selectedNoteIndex!]['imageUrl'] != null)
-                    Container(
-                      width: double.infinity,
-                      height: 200,
-                      margin: EdgeInsets.only(bottom: 16),
-                      decoration: BoxDecoration(
-                        borderRadius: BorderRadius.circular(8),
-                        image: DecorationImage(
-                          image: NetworkImage(
-                            _filteredNotes[_selectedNoteIndex!]['imageUrl'],
-                          ),
-                          fit: BoxFit.cover,
-                        ),
-                      ),
-                    ),
-                  Container(
-                    width: double.infinity,
-                    child: SelectableText(
-                      _filteredNotes[_selectedNoteIndex!]['code'],
-                      style: TextStyle(
-                        fontSize: 16,
-                        height: 1.5,
-                        color: Colors.black87,
-                      ),
-                      textAlign: TextAlign.left,
-                    ),
-                  ),
-                ],
-              ),
-            ),
-          ),
-        ],
-      );
-    }
-
-    return Column(
-      children: [
-        ListTile(
-          leading: IconButton(
-            icon: Icon(Icons.arrow_back),
-            onPressed: () {
-              setState(() {
-                _selectedFolderId = null;
-                _folderNotes.clear();
-                _selectedNoteIndex = null;
-              });
-            },
-          ),
-          title: Text(currentFolderName),
-        ),
-        Expanded(
-          child:
-              _folderNotes.isEmpty
-                  ? Center(
-                    child: Text(
-                      'No notes in this folder',
-                      style: TextStyle(fontSize: 16, color: Colors.grey[600]),
-                    ),
-                  )
-                  : ListView.builder(
-                    padding: EdgeInsets.all(8),
-                    itemCount: _filteredNotes.length,
-                    itemBuilder: (context, index) {
-                      final note = _filteredNotes[index];
-                      return Card(
-                        margin: EdgeInsets.all(8.0),
-                        child: InkWell(
-                          onTap: () {
-                            setState(() {
-                              _selectedNoteIndex = index;
-                            });
-                          },
-                          child: Padding(
-                            padding: EdgeInsets.all(16.0),
-                            child: Column(
-                              crossAxisAlignment: CrossAxisAlignment.start,
-                              children: [
-                                Row(
-                                  children: [
-                                    if (note['imageUrl'] != null)
-                                      Container(
-                                        width: 50,
-                                        height: 50,
-                                        margin: EdgeInsets.only(right: 16),
-                                        decoration: BoxDecoration(
-                                          borderRadius: BorderRadius.circular(
-                                            8,
-                                          ),
-                                          image: DecorationImage(
-                                            image: NetworkImage(
-                                              note['imageUrl'],
-                                            ),
-                                            fit: BoxFit.cover,
-                                          ),
-                                        ),
-                                      ),
-                                    Expanded(
-                                      child: Column(
-                                        crossAxisAlignment:
-                                            CrossAxisAlignment.start,
-                                        children: [
-                                          Text(
-                                            note['title'] ?? 'Untitled',
-                                            style: TextStyle(
-                                              fontSize: 18,
-                                              fontWeight: FontWeight.bold,
-                                              color: Colors.black87,
-                                            ),
-                                          ),
-                                          SizedBox(height: 4),
-                                          Text(
-                                            note['code'] ?? '',
-                                            maxLines: 2,
-                                            overflow: TextOverflow.ellipsis,
-                                            style: TextStyle(
-                                              color: Colors.black87,
-                                            ),
-                                          ),
-                                        ],
-                                      ),
-                                    ),
-                                  ],
-                                ),
-                              ],
-                            ),
-                          ),
-                        ),
-                      );
-                    },
-                  ),
-        ),
-      ],
-    );
-  }
-
-  Widget _buildFolderIcon(String iconPath) {
-    double size = 60; // Default size for display
-    if (iconPath.contains('flutter')) {
-      size = 45; // Smaller size for Flutter
-    } else if (iconPath.contains('html')) {
-      size = 70; // Larger size for HTML
-    }
-
-    return Container(
-      width: 60, // Fixed width for all icons
-      height: 60, // Fixed height for all icons
-      padding: EdgeInsets.all(8),
-      child: Center(
-        child: SvgPicture.asset(
-          iconPath,
-          color: Theme.of(context).primaryColor,
-          width: size, // Variable icon size
-          height: size, // Variable icon size
-        ),
-      ),
-    );
-  }
-
-  Widget _buildLanguageCard(String language, BuildContext context) {
-    String displayName = _getIconName('assets/icons/$language.svg');
-    double iconSize =
-        language == 'flutter'
-            ? 45
-            : language == 'html'
-            ? 70
-            : 60;
-
-    return Card(
-      elevation: 2,
-      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-      child: InkWell(
-        onTap: () {
-          Navigator.push(
-            context,
-            MaterialPageRoute(
-              builder: (context) => RecommendedNotesPage(language: language),
-            ),
-          );
-        },
-        borderRadius: BorderRadius.circular(12),
-        child: Container(
-          padding: EdgeInsets.all(8),
-          child: Column(
-            mainAxisAlignment: MainAxisAlignment.center,
-            children: [
-              SvgPicture.asset(
-                'assets/icons/$language.svg',
-                width: iconSize,
-                height: iconSize,
-                color: Theme.of(context).primaryColor,
-              ),
-              SizedBox(height: 8),
-              Text(
-                displayName,
-                style: TextStyle(fontSize: 14, fontWeight: FontWeight.bold),
-                textAlign: TextAlign.center,
-              ),
-            ],
-          ),
-        ),
-      ),
-    );
-  }
 }
 
 class FolderNotesPage extends StatefulWidget {
@@ -812,6 +693,94 @@ class _FolderNotesPageState extends State<FolderNotesPage> {
     }
   }
 
+  Widget _buildCodeBlock(String text) {
+    final codeBlocks = text.split('---');
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      mainAxisSize: MainAxisSize.min,
+      children:
+          codeBlocks.asMap().entries.map((entry) {
+            final index = entry.key;
+            final block = entry.value;
+
+            if (index % 2 == 1) {
+              // This is a code block (odd indices)
+              return Container(
+                width: double.infinity,
+                padding: EdgeInsets.all(8),
+                margin: EdgeInsets.symmetric(vertical: 8),
+                decoration: BoxDecoration(
+                  color: Colors.grey[100],
+                  borderRadius: BorderRadius.circular(8),
+                  border: Border.all(color: Colors.grey[300]!),
+                ),
+                child: HighlightView(
+                  block.trim(),
+                  language: 'cpp', // Default to C++
+                  theme: githubTheme,
+                  padding: EdgeInsets.zero,
+                  textStyle: TextStyle(fontFamily: 'monospace', fontSize: 14),
+                ),
+              );
+            } else {
+              // This is regular text (even indices)
+              final spans = <TextSpan>[];
+              var currentText = block;
+
+              // Process bold text
+              while (currentText.contains('**')) {
+                final partsBefore = currentText.split('**');
+                if (partsBefore.length > 1) {
+                  spans.add(
+                    TextSpan(
+                      text: partsBefore[0],
+                      style: TextStyle(
+                        fontSize: 16,
+                        height: 1.5,
+                        color: Colors.black87,
+                      ),
+                    ),
+                  );
+                  spans.add(
+                    TextSpan(
+                      text: partsBefore[1],
+                      style: TextStyle(
+                        fontSize: 16,
+                        height: 1.5,
+                        color: Colors.black87,
+                        fontWeight: FontWeight.bold,
+                      ),
+                    ),
+                  );
+                  currentText = partsBefore.sublist(2).join('**');
+                } else {
+                  break;
+                }
+              }
+
+              // Add any remaining text
+              if (currentText.isNotEmpty) {
+                spans.add(
+                  TextSpan(
+                    text: currentText,
+                    style: TextStyle(
+                      fontSize: 16,
+                      height: 1.5,
+                      color: Colors.black87,
+                    ),
+                  ),
+                );
+              }
+
+              return Padding(
+                padding: EdgeInsets.symmetric(vertical: 8),
+                child: SelectableText.rich(TextSpan(children: spans)),
+              );
+            }
+          }).toList(),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -865,51 +834,30 @@ class _FolderNotesPageState extends State<FolderNotesPage> {
             onTap: () {
               setState(() => _selectedNoteIndex = index);
             },
-            child: Padding(
-              padding: EdgeInsets.all(16),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Row(
-                    children: [
-                      if (note['imageUrl'] != null)
-                        Container(
-                          width: 60,
-                          height: 60,
-                          margin: EdgeInsets.only(right: 16),
-                          decoration: BoxDecoration(
-                            borderRadius: BorderRadius.circular(8),
-                            image: DecorationImage(
-                              image: NetworkImage(note['imageUrl']),
-                              fit: BoxFit.cover,
-                            ),
+            child: ListTile(
+              leading:
+                  note['imageUrl'] != null
+                      ? Container(
+                        width: 50,
+                        height: 50,
+                        decoration: BoxDecoration(
+                          borderRadius: BorderRadius.circular(8),
+                          image: DecorationImage(
+                            image: NetworkImage(note['imageUrl']),
+                            fit: BoxFit.cover,
                           ),
                         ),
-                      Expanded(
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            Text(
-                              note['title'],
-                              style: TextStyle(
-                                fontSize: 18,
-                                fontWeight: FontWeight.bold,
-                              ),
-                            ),
-                            SizedBox(height: 4),
-                            Text(
-                              'By ${note['ownerName']}',
-                              style: TextStyle(
-                                color: Colors.grey[600],
-                                fontSize: 14,
-                              ),
-                            ),
-                          ],
-                        ),
-                      ),
-                    ],
-                  ),
-                  SizedBox(height: 8),
+                      )
+                      : null,
+              title: Text(
+                note['title'],
+                style: TextStyle(fontWeight: FontWeight.bold),
+              ),
+              subtitle: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text('By ${note['ownerName']}'),
+                  SizedBox(height: 4),
                   Chip(
                     label: Text(
                       note['tag'].toString().substring(0, 1).toUpperCase() +
@@ -963,18 +911,7 @@ class _FolderNotesPageState extends State<FolderNotesPage> {
                       ),
                     ),
                   ),
-                Container(
-                  width: double.infinity,
-                  child: SelectableText(
-                    note['code'],
-                    style: TextStyle(
-                      fontSize: 16,
-                      height: 1.5,
-                      color: Colors.black87,
-                    ),
-                    textAlign: TextAlign.left,
-                  ),
-                ),
+                _buildCodeBlock(note['code']),
               ],
             ),
           ),
