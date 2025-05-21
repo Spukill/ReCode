@@ -4,7 +4,7 @@ import 'package:flutter_svg/flutter_svg.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter_highlight/flutter_highlight.dart';
 import 'package:flutter_highlight/themes/github.dart';
-import 'raccomandad_note.dart';
+import 'recommended_notes.dart';
 import 'related_note.dart';
 
 class LoadingOverlay extends StatelessWidget {
@@ -186,16 +186,16 @@ class _CodeSharingPageState extends State<CodeSharingPage> {
           await _firestore
               .collection('sharedNotes')
               .where('sharedFolderId', isEqualTo: folderId)
-              .get();
+        .get();
 
-      setState(() {
+    setState(() {
         _folderNotes =
             snapshot.docs.map((doc) {
               return {
-                'id': doc.id,
-                'title': doc['title'],
-                'code': doc['code'],
-                'imageUrl': doc['imageUrl'],
+        'id': doc.id,
+        'title': doc['title'],
+        'code': doc['code'],
+        'imageUrl': doc['imageUrl'],
                 'ownerName': doc['ownerName'],
               };
             }).toList();
@@ -259,7 +259,7 @@ class _CodeSharingPageState extends State<CodeSharingPage> {
                   ) ??
                   false),
         )
-        .toList();
+          .toList();
   }
 
   Future<void> _stopSharingFolder(String folderId) async {
@@ -341,9 +341,9 @@ class _CodeSharingPageState extends State<CodeSharingPage> {
                             },
                             child: Container(
                               width: 80,
-                              child: Column(
-                                mainAxisSize: MainAxisSize.min,
-                                children: [
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
                                   Container(
                                     width: 50,
                                     height: 50,
@@ -366,8 +366,8 @@ class _CodeSharingPageState extends State<CodeSharingPage> {
                                 ],
                               ),
                             ),
-                          );
-                        }).toList(),
+                      );
+                    }).toList(),
                   ),
                 ),
               ],
@@ -383,26 +383,29 @@ class _CodeSharingPageState extends State<CodeSharingPage> {
     return LoadingOverlay(
       isLoading: _isLoading,
       child: Scaffold(
-        appBar: AppBar(
-          title: Padding(
-            padding: EdgeInsets.only(top: 8.0),
-            child: TextField(
-              controller: _searchController,
-              decoration: InputDecoration(
-                hintText: 'Search folders...',
-                prefixIcon: Icon(Icons.search),
-                border: OutlineInputBorder(
-                  borderRadius: BorderRadius.circular(8.0),
-                  borderSide: BorderSide.none,
-                ),
-                filled: true,
-                fillColor: Colors.white,
-              ),
+      appBar: AppBar(
+        backgroundColor: Colors.white,
+        elevation: 0,
+        titleSpacing: 0,
+        title: Container(
+          color: Colors.white,
+          child: TextField(
+            controller: _searchController,
+            decoration: InputDecoration(
+              hintText: 'Search notes...',
+              prefixIcon: Icon(Icons.search),
+              border: InputBorder.none,
+              contentPadding: EdgeInsets.symmetric(vertical: 12, horizontal: 16),
+              filled: true,
+              fillColor: Colors.white,
             ),
+            style: TextStyle(fontSize: 16, fontWeight: FontWeight.w500),
           ),
         ),
-        body: Column(
-          children: [
+        automaticallyImplyLeading: false,
+      ),
+      body: Column(
+        children: [
             // Language selection button
             Container(
               padding: EdgeInsets.all(16),
@@ -438,7 +441,7 @@ class _CodeSharingPageState extends State<CodeSharingPage> {
     return ListView.builder(
       padding: EdgeInsets.all(16),
       itemCount: _filteredFolders.length,
-      itemBuilder: (context, index) {
+              itemBuilder: (context, index) {
         final folder = _filteredFolders[index];
         final isLiked =
             folder['likedBy']?.contains(_auth.currentUser?.uid) ?? false;
@@ -495,7 +498,7 @@ class _CodeSharingPageState extends State<CodeSharingPage> {
                               ),
                             ),
                             if (isOwner)
-                              IconButton(
+                        IconButton(
                                 icon: Icon(
                                   Icons.stop_circle,
                                   color: Colors.red,
@@ -536,23 +539,31 @@ class _CodeSharingPageState extends State<CodeSharingPage> {
                               ),
                           ],
                         ),
-                        Text(
-                          'Shared by: ${folder['ownerName']}',
-                          style: TextStyle(
-                            fontSize: 14,
-                            color: Colors.grey[600],
-                          ),
+                        Builder(
+                          builder: (context) {
+                            String username = folder['ownerName']?.toString() ?? '';
+                            if (username.contains('@')) {
+                              username = username.split('@')[0];
+                            }
+                            return Text(
+                              'Shared by: $username',
+                              style: TextStyle(
+                                fontSize: 14,
+                                color: Colors.grey[600],
+                              ),
+                            );
+                          },
                         ),
                       ],
                     ),
                   ),
                   Padding(
                     padding: EdgeInsets.only(right: 8),
-                    child: Column(
+                            child: Column(
                       mainAxisAlignment: MainAxisAlignment.center,
                       children: [
                         Row(
-                          children: [
+                              children: [
                             AnimatedSwitcher(
                               duration: Duration(milliseconds: 300),
                               transitionBuilder: (child, animation) {
@@ -593,9 +604,9 @@ class _CodeSharingPageState extends State<CodeSharingPage> {
                 ],
               ),
             ),
-          ),
-        );
-      },
+                        ),
+                      );
+                    },
     );
   }
 }
@@ -682,15 +693,30 @@ class _FolderNotesPageState extends State<FolderNotesPage> {
   Color _getTagColor(String tag) {
     switch (tag) {
       case 'dummies':
-        return Colors.green;
+        return Color(0xFFE8F5E9);
       case 'basic':
-        return Colors.blue;
+        return Color(0xFFE3F2FD);
       case 'advanced':
-        return Colors.orange;
+        return Color(0xFFFFF3E0);
       case 'externalLibs':
-        return Colors.purple;
+        return Color(0xFFF3E5F5);
       default:
-        return Colors.grey;
+        return Colors.grey[200]!;
+    }
+  }
+
+  Color _getTagTextColor(String tag) {
+    switch (tag) {
+      case 'dummies':
+        return Color(0xFF256029);
+      case 'basic':
+        return Color(0xFF0D47A1);
+      case 'advanced':
+        return Color(0xFF6D4C00);
+      case 'externalLibs':
+        return Color(0xFF4A148C);
+      default:
+        return Colors.black87;
     }
   }
 
@@ -786,19 +812,21 @@ class _FolderNotesPageState extends State<FolderNotesPage> {
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        title: TextField(
-          controller: _searchController,
-          decoration: InputDecoration(
-            hintText: 'Search notes...',
-            prefixIcon: Icon(Icons.search),
-            border: OutlineInputBorder(
-              borderRadius: BorderRadius.circular(8.0),
-              borderSide: BorderSide.none,
-            ),
-            filled: true,
-            fillColor: Colors.white,
-          ),
-        ),
+        title: _selectedNoteIndex == null
+            ? TextField(
+                controller: _searchController,
+                decoration: InputDecoration(
+                  hintText: 'Search notes...',
+                  prefixIcon: Icon(Icons.search),
+                  border: OutlineInputBorder(
+                    borderRadius: BorderRadius.circular(8.0),
+                    borderSide: BorderSide.none,
+                  ),
+                  filled: true,
+                  fillColor: Colors.white,
+                ),
+              )
+            : Text('Note Details'),
         leading: IconButton(
           icon: Icon(Icons.arrow_back),
           onPressed: () => Navigator.pop(context),
@@ -828,6 +856,10 @@ class _FolderNotesPageState extends State<FolderNotesPage> {
       itemCount: _filteredNotes.length,
       itemBuilder: (context, index) {
         final note = _filteredNotes[index];
+        String username = note['ownerName']?.toString() ?? '';
+        if (username.contains('@')) {
+          username = username.split('@')[0];
+        }
         return Card(
           elevation: 2,
           margin: EdgeInsets.only(bottom: 16),
@@ -857,15 +889,19 @@ class _FolderNotesPageState extends State<FolderNotesPage> {
               subtitle: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  Text('By ${note['ownerName']}'),
+                  Text('By $username'),
                   SizedBox(height: 4),
                   Chip(
                     label: Text(
-                      note['tag'].toString().substring(0, 1).toUpperCase() +
-                          note['tag'].toString().substring(1),
-                      style: TextStyle(color: Colors.white, fontSize: 12),
+                      note['tag'].toString().substring(0, 1).toUpperCase() + note['tag'].toString().substring(1),
+                      style: TextStyle(color: _getTagTextColor(note['tag'].toString()), fontSize: 11, fontWeight: FontWeight.w500),
                     ),
                     backgroundColor: _getTagColor(note['tag'].toString()),
+                    padding: EdgeInsets.symmetric(horizontal: 8, vertical: 2),
+                    materialTapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                    visualDensity: VisualDensity.compact,
+                    side: BorderSide.none,
+                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(6)),
                   ),
                 ],
               ),
@@ -878,6 +914,10 @@ class _FolderNotesPageState extends State<FolderNotesPage> {
 
   Widget _buildNoteDetails() {
     final note = _filteredNotes[_selectedNoteIndex!];
+    String username = note['ownerName']?.toString() ?? '';
+    if (username.contains('@')) {
+      username = username.split('@')[0];
+    }
     return Column(
       children: [
         ListTile(
@@ -891,7 +931,7 @@ class _FolderNotesPageState extends State<FolderNotesPage> {
             note['title'],
             style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
           ),
-          subtitle: Text('By ${note['ownerName']}'),
+          subtitle: Text('By $username'),
           trailing: IconButton(
             icon: Icon(Icons.compare_arrows),
             tooltip: 'Show similar notes in other languages',
@@ -899,34 +939,10 @@ class _FolderNotesPageState extends State<FolderNotesPage> {
               Navigator.push(
                 context,
                 MaterialPageRoute(
-                  builder:
-                      (context) => RelatedNotesPage(
-                        originalNote: note,
-                        currentLanguage:
-                            widget.folder['icon'].toString().contains('c++')
-                                ? 'C++'
-                                : widget.folder['icon'].toString().contains(
-                                  'java',
-                                )
-                                ? 'Java'
-                                : widget.folder['icon'].toString().contains(
-                                  'python',
-                                )
-                                ? 'Python'
-                                : widget.folder['icon'].toString().contains(
-                                  'c.svg',
-                                )
-                                ? 'C'
-                                : widget.folder['icon'].toString().contains(
-                                  'html',
-                                )
-                                ? 'HTML'
-                                : widget.folder['icon'].toString().contains(
-                                  'flutter',
-                                )
-                                ? 'Flutter'
-                                : 'Unknown',
-                      ),
+                  builder: (context) => RelatedNotesPage(
+                    originalNote: note,
+                    currentLanguage: '',
+                  ),
                 ),
               );
             },
@@ -937,6 +953,7 @@ class _FolderNotesPageState extends State<FolderNotesPage> {
             padding: EdgeInsets.all(16),
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
+              mainAxisAlignment: MainAxisAlignment.start,
               children: [
                 if (note['imageUrl'] != null)
                   Container(

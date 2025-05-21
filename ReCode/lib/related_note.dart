@@ -3,6 +3,7 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter_svg/flutter_svg.dart';
 import 'package:flutter_highlight/flutter_highlight.dart';
 import 'package:flutter_highlight/themes/github.dart';
+import 'community_page.dart' as community_page;
 
 class RelatedNotesPage extends StatefulWidget {
   final Map<String, dynamic> originalNote;
@@ -33,73 +34,61 @@ class _RelatedNotesPageState extends State<RelatedNotesPage> {
   }
 
   Future<void> _loadRelatedNotes() async {
+    setState(() => _isLoading = true);
     try {
-      setState(() => _isLoading = true);
+      // Fetch all current shared folder IDs
+      QuerySnapshot foldersSnapshot = await _firestore.collection('sharedFolders').get();
+      final activeFolderIds = foldersSnapshot.docs.map((doc) => doc.id).toSet();
 
-      // Get the current note title and split it into keywords
-      String currentTitle =
-          widget.originalNote['title'].toString().toLowerCase();
-      List<String> keywords =
-          currentTitle.split(' ').where((word) => word.length > 3).toList();
-
-      // Get all shared folders to determine their languages
-      QuerySnapshot foldersSnapshot =
-          await _firestore.collection('sharedFolders').get();
-
-      Map<String, String> folderLanguages = {};
-      for (var folder in foldersSnapshot.docs) {
-        String icon = folder.get('icon');
-        String language = _getLanguageFromIcon(icon);
-        folderLanguages[folder.id] = language;
-      }
-
-      // Get all notes
-      QuerySnapshot allNotesSnapshot =
-          await _firestore.collection('sharedNotes').get();
-
-      // Filter and score related notes
-      List<Map<String, dynamic>> relatedNotes = [];
-      Set<String> languages = {};
-
-      for (var doc in allNotesSnapshot.docs) {
-        String noteTitle = doc.get('title').toString().toLowerCase();
-        String folderId = doc.get('sharedFolderId');
-        String noteLanguage = folderLanguages[folderId] ?? 'Unknown';
-
-        // Skip notes from the same language as the original note
-        if (noteLanguage == widget.currentLanguage) continue;
-
-        // Calculate similarity score
-        int matchingKeywords =
-            keywords.where((keyword) => noteTitle.contains(keyword)).length;
-
-        if (matchingKeywords > 0) {
-          languages.add(noteLanguage);
-          relatedNotes.add({
-            'id': doc.id,
-            'title': doc.get('title'),
-            'code': doc.get('code'),
-            'imageUrl': doc.get('imageUrl'),
-            'tag': doc.get('tag') ?? 'dummies',
-            'ownerName': doc.get('ownerName'),
-            'language': noteLanguage,
-            'similarity': matchingKeywords,
-            'createdAt': doc.get('createdAt')?.toDate() ?? DateTime.now(),
-          });
-        }
-      }
-
-      // Sort by similarity score
-      relatedNotes.sort((a, b) => b['similarity'].compareTo(a['similarity']));
-
+      // Only fetch notes from sharedNotes collection whose sharedFolderId is active
+      QuerySnapshot snapshot = await _firestore.collection('sharedNotes').get();
+      final seenIds = <String>{};
+      // Prepare keywords from the original note's title
+      final originalTitle = widget.originalNote['title'].toString().toLowerCase();
+      final keywords = originalTitle.split(RegExp(r'\s+')).where((w) => w.length > 3).toSet();
+      
+      List<Map<String, dynamic>> notes = snapshot.docs.map((doc) {
+        final data = doc.data() as Map<String, dynamic>;
+        return {
+          'id': doc.id,
+          'title': data['title'],
+          'code': data['code'],
+          'imageUrl': data['imageUrl'],
+          'tag': data['tag'] ?? 'dummies',
+          'ownerName': data['ownerName'],
+          'language': data['language'] ?? 'Unknown',
+          'createdAt': data['createdAt']?.toDate() ?? DateTime.now(),
+          'sharedFolderId': data['sharedFolderId'],
+        };
+      })
+      // Only keep notes whose sharedFolderId is still active
+      .where((note) => activeFolderIds.contains(note['sharedFolderId']))
+      // Only keep notes with similar names
+      .where((note) {
+        final titleWords = note['title'].toString().toLowerCase().split(RegExp(r'\s+')).where((w) => w.length > 3).toSet();
+        return keywords.intersection(titleWords).isNotEmpty;
+      })
+      // Remove duplicates by title + ownerName + language
+      .where((note) {
+        final key = note['title'].toString() + note['ownerName'].toString() + note['language'].toString();
+        if (seenIds.contains(key)) return false;
+        seenIds.add(key);
+        return true;
+      }).toList();
       setState(() {
-        _relatedNotes = relatedNotes;
-        _availableLanguages = languages;
+        _relatedNotes = notes;
+        _availableLanguages = notes.map((n) => n['language'].toString()).toSet();
         _isLoading = false;
       });
     } catch (e) {
-      print('Error finding related notes: $e');
       setState(() => _isLoading = false);
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('Error loading related notes: ${e.toString()}'),
+          backgroundColor: Colors.red,
+          duration: Duration(seconds: 5),
+        ),
+      );
     }
   }
 
@@ -114,12 +103,13 @@ class _RelatedNotesPageState extends State<RelatedNotesPage> {
   }
 
   List<Map<String, dynamic>> get _filteredNotes {
+    // Always filter out the original note by id
+    final originalId = widget.originalNote['id']?.toString();
+    final filtered = _relatedNotes.where((note) => note['id']?.toString() != originalId).toList();
     if (_selectedLanguage == null) {
-      return _relatedNotes;
+      return filtered;
     }
-    return _relatedNotes
-        .where((note) => note['language'] == _selectedLanguage)
-        .toList();
+    return filtered.where((note) => note['language'] == _selectedLanguage).toList();
   }
 
   @override
@@ -127,58 +117,12 @@ class _RelatedNotesPageState extends State<RelatedNotesPage> {
     return Scaffold(
       appBar: AppBar(
         title: Text('Similar Notes'),
-        bottom: PreferredSize(
-          preferredSize: Size.fromHeight(60),
-          child: Container(
-            padding: EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-            child: Row(
-              children: [
-                Text('Filter by language: '),
-                SizedBox(width: 8),
-                Expanded(
-                  child: SingleChildScrollView(
-                    scrollDirection: Axis.horizontal,
-                    child: Row(
-                      children: [
-                        FilterChip(
-                          label: Text('All'),
-                          selected: _selectedLanguage == null,
-                          onSelected: (bool selected) {
-                            setState(() {
-                              _selectedLanguage = null;
-                            });
-                          },
-                        ),
-                        SizedBox(width: 8),
-                        ..._availableLanguages.map((language) {
-                          return Padding(
-                            padding: EdgeInsets.only(right: 8),
-                            child: FilterChip(
-                              label: Text(language),
-                              selected: _selectedLanguage == language,
-                              onSelected: (bool selected) {
-                                setState(() {
-                                  _selectedLanguage =
-                                      selected ? language : null;
-                                });
-                              },
-                            ),
-                          );
-                        }).toList(),
-                      ],
-                    ),
-                  ),
-                ),
-              ],
-            ),
-          ),
-        ),
       ),
       body:
           _isLoading
               ? Center(child: CircularProgressIndicator())
               : _selectedNoteIndex != null
-              ? _buildNoteDetails()
+              ? _buildSideBySideComparison()
               : _buildNotesList(),
     );
   }
@@ -199,6 +143,13 @@ class _RelatedNotesPageState extends State<RelatedNotesPage> {
       padding: EdgeInsets.all(16),
       itemBuilder: (context, index) {
         final note = _filteredNotes[index];
+        String username = note['ownerName']?.toString() ?? '';
+        if (username.contains('@')) {
+          username = username.split('@')[0];
+        }
+        if (username.length > 14) {
+          username = username.substring(0, 11) + '...';
+        }
         return Card(
           elevation: 2,
           margin: EdgeInsets.only(bottom: 16),
@@ -212,7 +163,7 @@ class _RelatedNotesPageState extends State<RelatedNotesPage> {
               children: [
                 SizedBox(height: 4),
                 Text('Language: ${note['language']}'),
-                Text('By: ${note['ownerName']}'),
+                Text('By: $username'),
               ],
             ),
             onTap: () {
@@ -226,54 +177,205 @@ class _RelatedNotesPageState extends State<RelatedNotesPage> {
     );
   }
 
-  Widget _buildNoteDetails() {
-    final note = _filteredNotes[_selectedNoteIndex!];
-    return Column(
+  Widget _buildSideBySideComparison() {
+    final comparedNote = _filteredNotes[_selectedNoteIndex!];
+    final originalNote = widget.originalNote;
+    String username1 = originalNote['ownerName']?.toString() ?? '';
+    if (username1.contains('@')) username1 = username1.split('@')[0];
+    if (username1.length > 14) username1 = username1.substring(0, 11) + '...';
+    String username2 = comparedNote['ownerName']?.toString() ?? '';
+    if (username2.contains('@')) username2 = username2.split('@')[0];
+    if (username2.length > 14) username2 = username2.substring(0, 11) + '...';
+    return Row(
+      crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        ListTile(
-          leading: IconButton(
-            icon: Icon(Icons.arrow_back),
-            onPressed: () {
-              setState(() => _selectedNoteIndex = null);
-            },
-          ),
-          title: Text(
-            note['title'],
-            style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
-          ),
-          subtitle: Text('By ${note['ownerName']}'),
-        ),
         Expanded(
-          child: SingleChildScrollView(
-            padding: EdgeInsets.all(16),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                if (note['imageUrl'] != null)
-                  Container(
-                    width: double.infinity,
-                    height: 200,
-                    margin: EdgeInsets.only(bottom: 16),
-                    decoration: BoxDecoration(
-                      borderRadius: BorderRadius.circular(8),
-                      image: DecorationImage(
-                        image: NetworkImage(note['imageUrl']),
-                        fit: BoxFit.cover,
+          child: Padding(
+            padding: EdgeInsets.all(8),
+            child: Card(
+              elevation: 2,
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  ListTile(
+                    title: Text(originalNote['title'], style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
+                    subtitle: Text('By $username1'),
+                  ),
+                  if (originalNote['imageUrl'] != null)
+                    Container(
+                      width: double.infinity,
+                      height: 120,
+                      margin: EdgeInsets.only(bottom: 8),
+                      decoration: BoxDecoration(
+                        borderRadius: BorderRadius.circular(8),
+                        image: DecorationImage(
+                          image: NetworkImage(originalNote['imageUrl']),
+                          fit: BoxFit.cover,
+                        ),
                       ),
                     ),
+                  Padding(
+                    padding: EdgeInsets.all(8),
+                    child: _buildCodeBlock(originalNote['code'] ?? ''),
                   ),
-                HighlightView(
-                  note['code'],
-                  language: note['language'].toString().toLowerCase(),
-                  theme: githubTheme,
-                  padding: EdgeInsets.all(12),
-                  textStyle: TextStyle(fontSize: 14),
-                ),
-              ],
+                ],
+              ),
+            ),
+          ),
+        ),
+        VerticalDivider(width: 1, thickness: 1, color: Colors.grey[300]),
+        Expanded(
+          child: Padding(
+            padding: EdgeInsets.all(8),
+            child: Card(
+              elevation: 2,
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  ListTile(
+                    title: Text(comparedNote['title'], style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
+                    subtitle: Text('By $username2'),
+                  ),
+                  if (comparedNote['imageUrl'] != null)
+                    Container(
+                      width: double.infinity,
+                      height: 120,
+                      margin: EdgeInsets.only(bottom: 8),
+                      decoration: BoxDecoration(
+                        borderRadius: BorderRadius.circular(8),
+                        image: DecorationImage(
+                          image: NetworkImage(comparedNote['imageUrl']),
+                          fit: BoxFit.cover,
+                        ),
+                      ),
+                    ),
+                  Padding(
+                    padding: EdgeInsets.all(8),
+                    child: _buildCodeBlock(comparedNote['code'] ?? ''),
+                  ),
+                ],
+              ),
             ),
           ),
         ),
       ],
+    );
+  }
+
+  Widget _buildCodeBlock(String text) {
+    final codeBlocks = text.split('---');
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      mainAxisSize: MainAxisSize.min,
+      children: codeBlocks.asMap().entries.map((entry) {
+        final index = entry.key;
+        final block = entry.value;
+        if (index % 2 == 1) {
+          // This is a code block (odd indices)
+          return Container(
+            width: double.infinity,
+            padding: EdgeInsets.all(8),
+            margin: EdgeInsets.symmetric(vertical: 2),
+            decoration: BoxDecoration(
+              color: Colors.grey[100],
+              borderRadius: BorderRadius.circular(8),
+              border: Border.all(color: Colors.grey[300]!),
+            ),
+            child: HighlightView(
+              block.trim(),
+              language: 'cpp', // Default to C++
+              theme: githubTheme,
+              padding: EdgeInsets.zero,
+              textStyle: TextStyle(fontFamily: 'monospace', fontSize: 14),
+            ),
+          );
+        } else {
+          // This is regular text (even indices)
+          final spans = <TextSpan>[];
+          var currentText = block;
+
+          // Process bold text
+          while (currentText.contains('**')) {
+            final partsBefore = currentText.split('**');
+            if (partsBefore.length > 1) {
+              spans.add(
+                TextSpan(
+                  text: partsBefore[0],
+                  style: TextStyle(
+                    fontSize: 16,
+                    height: 1.5,
+                    color: Colors.black87,
+                  ),
+                ),
+              );
+              spans.add(
+                TextSpan(
+                  text: partsBefore[1],
+                  style: TextStyle(
+                    fontSize: 16,
+                    height: 1.5,
+                    color: Colors.black87,
+                    fontWeight: FontWeight.bold,
+                  ),
+                ),
+              );
+              currentText = partsBefore.sublist(2).join('**');
+            } else {
+              break;
+            }
+          }
+
+          // Process underlined text
+          while (currentText.contains('__')) {
+            final partsBefore = currentText.split('__');
+            if (partsBefore.length > 1) {
+              spans.add(
+                TextSpan(
+                  text: partsBefore[0],
+                  style: TextStyle(
+                    fontSize: 16,
+                    height: 1.5,
+                    color: Colors.black87,
+                  ),
+                ),
+              );
+              spans.add(
+                TextSpan(
+                  text: partsBefore[1],
+                  style: TextStyle(
+                    fontSize: 16,
+                    height: 1.5,
+                    color: Colors.black87,
+                    decoration: TextDecoration.underline,
+                  ),
+                ),
+              );
+              currentText = partsBefore.sublist(2).join('__');
+            } else {
+              break;
+            }
+          }
+
+          // Add any remaining text
+          if (currentText.isNotEmpty) {
+            spans.add(
+              TextSpan(
+                text: currentText,
+                style: TextStyle(
+                  fontSize: 16,
+                  height: 1.5,
+                  color: Colors.black87,
+                ),
+              ),
+            );
+          }
+
+          return Padding(
+            padding: EdgeInsets.symmetric(vertical: 8),
+            child: SelectableText.rich(TextSpan(children: spans)),
+          );
+        }
+      }).toList(),
     );
   }
 }

@@ -61,6 +61,10 @@ class _CodeStoringPageState extends State<CodeStoringPage>
   bool _isLoading = false;
   String _selectedTag = 'dummies'; // Default tag value
   String _selectedConcept = ''; // e.g., 'printing', 'loops', etc.
+  Set<String> _sharedFolderIds = {};
+  int _currentFolderPage = 0;
+  int _currentNotePage = 0;
+  static const int _itemsPerPage = 10;
 
   final List<String> _availableIcons = [
     'assets/icons/c++.svg',
@@ -97,16 +101,17 @@ class _CodeStoringPageState extends State<CodeStoringPage>
   void initState() {
     super.initState();
     _loadFolders();
+    _loadSharedFolders();
     _animationController = AnimationController(
       duration: const Duration(milliseconds: 300),
       vsync: this,
     );
-    _rotationAnimation = Tween<double>(begin: 0, end: 0.5).animate(
+    _rotationAnimation = Tween<double>(begin: 0, end: 1).animate(
       CurvedAnimation(parent: _animationController, curve: Curves.easeInOut),
     );
-    // Add listener to search controller
     _searchController.addListener(() {
-      setState(() {}); // Rebuild the UI when search text changes
+      setState(() {});
+      _ensureNotePageInRange();
     });
   }
 
@@ -126,8 +131,8 @@ class _CodeStoringPageState extends State<CodeStoringPage>
         QuerySnapshot snapshot =
             await _firestore
                 .collection('folders')
-                .where('userId', isEqualTo: user.uid)
-                .get();
+          .where('userId', isEqualTo: user.uid)
+          .get();
 
         List<Map<String, dynamic>> sortedFolders =
             snapshot.docs.map((doc) {
@@ -154,7 +159,7 @@ class _CodeStoringPageState extends State<CodeStoringPage>
         );
 
         if (mounted) {
-          setState(() {
+      setState(() {
             _folders = sortedFolders;
             _isLoading = false;
           });
@@ -183,25 +188,47 @@ class _CodeStoringPageState extends State<CodeStoringPage>
     if (user != null) {
       QuerySnapshot snapshot =
           await _firestore
-              .collection('notes')
-              .where('userId', isEqualTo: user.uid)
-              .where('folderId', isEqualTo: folderId)
-              .get();
+          .collection('notes')
+          .where('userId', isEqualTo: user.uid)
+          .where('folderId', isEqualTo: folderId)
+          .get();
+      
+      List<Map<String, dynamic>> sortedNotes = snapshot.docs.map((doc) {
+          return {
+            'id': doc.id,
+            'title': doc['title'],
+            'code': doc['code'],
+            'imageUrl': doc['imageUrl'],
+          'tag': doc['tag'] ?? 'dummies',
+          'createdAt': doc['createdAt']?.toDate() ?? DateTime.now(),
+          };
+        }).toList();
+      
+      // Sort by creation date, newest first
+      sortedNotes.sort((a, b) => 
+        (a['createdAt'] as DateTime).compareTo(b['createdAt'] as DateTime)
+      );
+      
       setState(() {
-        _notes =
-            snapshot.docs.map((doc) {
-              return {
-                'id': doc.id,
-                'title': doc['title'],
-                'code': doc['code'],
-                'imageUrl': doc['imageUrl'],
-                'tag':
-                    doc['tag'] ?? 'dummies', // Add tag field with default value
-              };
-            }).toList();
+        _notes = sortedNotes;
         _currentFolderId = folderId;
+        _currentNotePage = 0;
       });
     }
+  }
+
+  Future<void> _loadSharedFolders() async {
+    final user = _auth.currentUser;
+    if (user == null) return;
+    final snapshot = await _firestore
+        .collection('sharedFolders')
+        .where('ownerId', isEqualTo: user.uid)
+        .get();
+    setState(() {
+      _sharedFolderIds = snapshot.docs
+          .map((doc) => doc['originalFolderId'] as String)
+          .toSet();
+    });
   }
 
   Future<void> _addFolder() async {
@@ -320,6 +347,7 @@ class _CodeStoringPageState extends State<CodeStoringPage>
       }
 
       setState(() => _isLoading = false);
+      await _loadSharedFolders(); // Refresh shared folder ids
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
           content: Text('Folder shared successfully!'),
@@ -343,29 +371,29 @@ class _CodeStoringPageState extends State<CodeStoringPage>
     }
   }
 
-  Future<void> _saveNote() async {
-    final title = _titleController.text.trim();
-    final codeSnippet = _codeController.text.trim();
+Future<void> _saveNote() async {
+  final title = _titleController.text.trim();
+  final codeSnippet = _codeController.text.trim();
 
-    if (title.isEmpty && codeSnippet.isEmpty) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Please add a title or code snippet')),
-      );
-      return;
-    }
+  if (title.isEmpty && codeSnippet.isEmpty) {
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(content: Text('Please add a title or code snippet')),
+    );
+    return;
+  }
 
-    final user = _auth.currentUser;
-    if (user == null) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('You must be logged in to save notes')),
-      );
-      return;
-    }
+  final user = _auth.currentUser;
+  if (user == null) {
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(content: Text('You must be logged in to save notes')),
+    );
+    return;
+  }
 
     setState(() => _isLoading = true);
-    try {
-      String? imageUrl;
-
+  try {
+    String? imageUrl;
+    
       // Handle image removal during editing
       if (_editingIndex != null && _image != null && _image!.path.isEmpty) {
         // Delete the old image if it exists
@@ -418,7 +446,7 @@ class _CodeStoringPageState extends State<CodeStoringPage>
           final uploadTask = await storageRef.putFile(_image!, metadata);
 
           if (uploadTask.state == TaskState.success) {
-            imageUrl = await storageRef.getDownloadURL();
+      imageUrl = await storageRef.getDownloadURL();
             print('New image uploaded successfully: $imageUrl');
           } else {
             throw Exception('Failed to upload image: ${uploadTask.state}');
@@ -437,18 +465,18 @@ class _CodeStoringPageState extends State<CodeStoringPage>
         }
       }
 
-      if (_editingIndex != null) {
+    if (_editingIndex != null) {
         final noteId = _notes[_editingIndex!]['id'];
-        final currentImageUrl = _notes[_editingIndex!]['imageUrl'];
+      final currentImageUrl = _notes[_editingIndex!]['imageUrl'];
 
         // Update the original note
         await _firestore.collection('notes').doc(noteId).update({
-          'title': title,
-          'code': codeSnippet,
-          'imageUrl': imageUrl ?? currentImageUrl,
+        'title': title,
+        'code': codeSnippet,
+        'imageUrl': imageUrl ?? currentImageUrl,
           'tag': _selectedTag, // Add tag field
-          'updatedAt': FieldValue.serverTimestamp(),
-        });
+        'updatedAt': FieldValue.serverTimestamp(),
+      });
 
         // Find and update any shared versions of this note
         QuerySnapshot sharedNotesSnapshot =
@@ -466,7 +494,7 @@ class _CodeStoringPageState extends State<CodeStoringPage>
             'updatedAt': FieldValue.serverTimestamp(),
           });
         }
-      } else {
+    } else {
         // Get the language from the folder's icon
         final folderDoc =
             await _firestore.collection('folders').doc(_currentFolderId).get();
@@ -477,16 +505,16 @@ class _CodeStoringPageState extends State<CodeStoringPage>
         DocumentReference newNoteRef = await _firestore
             .collection('notes')
             .add({
-              'userId': user.uid,
-              'folderId': _currentFolderId,
-              'title': title,
-              'code': codeSnippet,
-              'imageUrl': imageUrl,
-              'tag': _selectedTag,
-              'concept': _selectedConcept,
-              'language': language,
-              'createdAt': FieldValue.serverTimestamp(),
-            });
+        'userId': user.uid,
+          'folderId': _currentFolderId,
+        'title': title,
+        'code': codeSnippet,
+        'imageUrl': imageUrl,
+          'tag': _selectedTag,
+          'concept': _selectedConcept,
+          'language': language,
+        'createdAt': FieldValue.serverTimestamp(),
+        });
 
         // If this note is in a shared folder, create a shared version
         QuerySnapshot sharedFoldersSnapshot =
@@ -512,32 +540,35 @@ class _CodeStoringPageState extends State<CodeStoringPage>
         }
       }
 
-      _resetForm();
+    _resetForm();
       if (_currentFolderId != null) {
         await _loadNotes(_currentFolderId!);
       }
-      setState(() => _isLoading = false);
-    } catch (e) {
+      setState(() {
+        _isLoading = false;
+        _isAddingNote = false;
+      });
+  } catch (e) {
       setState(() => _isLoading = false);
       print('Error saving note: $e');
-      ScaffoldMessenger.of(context).showSnackBar(
+    ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
           content: Text('Error saving note: ${e.toString()}'),
           backgroundColor: Colors.red,
           duration: Duration(seconds: 5),
         ),
-      );
-    }
+    );
   }
+} 
 
-  void _resetForm() {
-    _titleController.clear();
-    _codeController.clear();
-    _image = null;
-    _isAddingNote = false;
-    _editingIndex = null;
-    _selectedTag = 'dummies'; // Reset tag to default value
-  }
+void _resetForm() {
+  _titleController.clear();
+  _codeController.clear();
+  _image = null;
+  _isAddingNote = false;
+  _editingIndex = null;
+  _selectedTag = 'dummies'; // Reset tag to default value
+}
 
   Future<void> _pickImage() async {
     try {
@@ -547,9 +578,9 @@ class _CodeStoringPageState extends State<CodeStoringPage>
       );
 
       if (pickedFile != null) {
-        setState(() {
-          _image = File(pickedFile.path);
-        });
+          setState(() {
+            _image = File(pickedFile.path);
+          });
       }
     } catch (e) {
       ScaffoldMessenger.of(context).showSnackBar(
@@ -585,6 +616,15 @@ class _CodeStoringPageState extends State<CodeStoringPage>
     try {
       await _firestore.collection('notes').doc(_notes[index]['id']).delete();
       print('Note deleted from Firestore');
+
+      // Also delete from sharedNotes if it exists
+      final sharedNotesSnapshot = await _firestore
+        .collection('sharedNotes')
+        .where('originalNoteId', isEqualTo: _notes[index]['id'])
+        .get();
+      for (var doc in sharedNotesSnapshot.docs) {
+        await doc.reference.delete();
+      }
 
       if (_notes[index]['imageUrl'] != null) {
         final imageUrl = _notes[index]['imageUrl'];
@@ -656,7 +696,7 @@ class _CodeStoringPageState extends State<CodeStoringPage>
       }
 
       await _firestore.collection('folders').doc(folderId).delete();
-
+      await _loadSharedFolders(); // Refresh shared folder ids
       setState(() {
         _folders.removeWhere((folder) => folder['id'] == folderId);
         if (_currentFolderId == folderId) {
@@ -671,6 +711,22 @@ class _CodeStoringPageState extends State<CodeStoringPage>
         SnackBar(content: Text('Error deleting folder: ${e.toString()}')),
       );
     }
+  }
+
+  void _onStopSharing(String folderId) async {
+    // Remove from sharedFolders
+    final user = _auth.currentUser;
+    if (user == null) return;
+    final snapshot = await _firestore
+        .collection('sharedFolders')
+        .where('ownerId', isEqualTo: user.uid)
+        .where('originalFolderId', isEqualTo: folderId)
+        .get();
+    for (var doc in snapshot.docs) {
+      await doc.reference.delete();
+    }
+    await _loadSharedFolders();
+    setState(() {});
   }
 
   String _getIconName(String iconPath) {
@@ -715,78 +771,107 @@ class _CodeStoringPageState extends State<CodeStoringPage>
         .toList();
   }
 
+  List<Map<String, dynamic>> get _pagedFolders {
+    final start = _currentFolderPage * _itemsPerPage;
+    final end = (start + _itemsPerPage).clamp(0, _filteredFolders.length);
+    return _filteredFolders.sublist(start, end);
+  }
+  int get _totalFolderPages => (_filteredFolders.length / _itemsPerPage).ceil();
+
+  List<Map<String, dynamic>> get _pagedNotes {
+    final start = _currentNotePage * _itemsPerPage;
+    final end = (start + _itemsPerPage).clamp(0, _filteredNotes.length);
+    return _filteredNotes.sublist(start, end);
+  }
+  int get _totalNotePages => (_filteredNotes.length / _itemsPerPage).ceil();
+
   @override
   Widget build(BuildContext context) {
     return LoadingOverlay(
       isLoading: _isLoading,
       child: Scaffold(
         appBar: AppBar(
-          title: Padding(
-            padding: EdgeInsets.only(top: 8.0),
-            child:
-                _selectedNoteIndex != null && !_isAddingNote
-                    ? Text(
-                      'Note Details',
-                      style: TextStyle(
-                        fontSize: 20,
-                        fontWeight: FontWeight.bold,
-                      ),
-                    )
-                    : TextField(
-                      controller: _searchController,
-                      decoration: InputDecoration(
-                        hintText:
-                            _currentFolderId == null
-                                ? 'Search folders...'
-                                : 'Search notes...',
-                        prefixIcon: Icon(Icons.search),
-                        border: OutlineInputBorder(
-                          borderRadius: BorderRadius.circular(8.0),
-                          borderSide: BorderSide.none,
-                        ),
-                        filled: true,
-                        fillColor: Colors.white,
-                      ),
-                      onChanged: (value) {
-                        setState(
-                          () {},
-                        ); // Rebuild the UI when search text changes
-                      },
+          backgroundColor: Colors.white,
+          elevation: 0,
+          titleSpacing: 0,
+          title: Container(
+            color: Colors.white,
+            child: Row(
+        children: [
+                Expanded(
+                  child: TextField(
+                    controller: _searchController,
+                    decoration: InputDecoration(
+                      hintText: _currentFolderId == null ? 'Search folders...' : 'Search notes...',
+                      prefixIcon: Icon(Icons.search),
+                      border: InputBorder.none,
+                      contentPadding: EdgeInsets.symmetric(vertical: 12, horizontal: 16),
+                      filled: true,
+                      fillColor: Colors.white,
                     ),
+                    style: TextStyle(fontSize: 16, fontWeight: FontWeight.w500),
+                    onChanged: (value) { setState(() {}); },
+                  ),
+                ),
+                SizedBox(width: 12),
+                Container(
+                  width: 36,
+                  height: 36,
+                  decoration: BoxDecoration(
+                    color: Colors.blue,
+                    borderRadius: BorderRadius.circular(8),
+                    boxShadow: [
+                      BoxShadow(
+                        color: Colors.blue.withOpacity(0.2),
+                        blurRadius: 6,
+                        offset: Offset(0, 2),
+                      ),
+                    ],
+                  ),
+                  child: Center(
+                    child: GestureDetector(
+                      onTap: () {
+                        if (_currentFolderId == null) {
+                          setState(() {
+                            _isAddingFolder = !_isAddingFolder;
+                            if (_isAddingFolder) {
+                              _animationController.forward();
+                            } else {
+                              _animationController.reverse();
+                              _folderNameController.clear();
+                            }
+                          });
+                        } else {
+                          setState(() {
+                            _isAddingNote = !_isAddingNote;
+                            if (_isAddingNote) {
+                              _animationController.forward();
+                            } else {
+                              _animationController.reverse();
+                            }
+                          });
+                        }
+                      },
+                      child: AnimatedBuilder(
+                        animation: _animationController,
+                        builder: (context, child) {
+                          return Transform.rotate(
+                            angle: _rotationAnimation.value * 1.5 * 3.141592653589793,
+                            child: Icon(Icons.add, color: Colors.white, size: 22),
+                          );
+                        },
+                      ),
+                    ),
+                  ),
+                ),
+                SizedBox(width: 8),
+              ],
+            ),
           ),
+          automaticallyImplyLeading: false,
         ),
         body:
             _currentFolderId == null ? _buildFoldersView() : _buildNotesView(),
-        floatingActionButton: FloatingActionButton(
-          onPressed: () {
-            setState(() {
-              if (_currentFolderId == null) {
-                _isAddingFolder = !_isAddingFolder;
-                if (_isAddingFolder) {
-                  _animationController.forward();
-                } else {
-                  _animationController.reverse();
-                  _folderNameController.clear();
-                }
-              } else {
-                _isAddingNote = true;
-              }
-            });
-          },
-          child: AnimatedBuilder(
-            animation: _rotationAnimation,
-            builder: (context, child) {
-              return Transform.rotate(
-                angle: (_rotationAnimation.value * 3.14159) + (3.14159 / 2),
-                child: Icon(
-                  _currentFolderId == null
-                      ? (_isAddingFolder ? Icons.remove : Icons.add)
-                      : Icons.add,
-                ),
-              );
-            },
-          ),
-        ),
       ),
     );
   }
@@ -848,16 +933,18 @@ class _CodeStoringPageState extends State<CodeStoringPage>
               ],
             ),
           ),
-        Expanded(
-          child: ListView.builder(
+          Expanded(
+            child: ListView.builder(
             padding: EdgeInsets.all(16),
-            itemCount: _filteredFolders.length,
-            itemBuilder: (context, index) {
+            itemCount: _pagedFolders.length,
+              itemBuilder: (context, index) {
+              final folder = _pagedFolders[index];
+              final isShared = _sharedFolderIds.contains(folder['id']);
               return Container(
                 height: 70,
                 margin: EdgeInsets.only(bottom: 8),
                 child: InkWell(
-                  onTap: () => _loadNotes(_filteredFolders[index]['id']),
+                  onTap: () => _loadNotes(folder['id']),
                   child: Container(
                     decoration: BoxDecoration(
                       color: Colors.grey[200],
@@ -867,13 +954,11 @@ class _CodeStoringPageState extends State<CodeStoringPage>
                       children: [
                         Padding(
                           padding: EdgeInsets.all(8),
-                          child: _buildFolderIcon(
-                            _filteredFolders[index]['icon'],
-                          ),
+                          child: _buildFolderIcon(folder['icon']),
                         ),
                         Expanded(
                           child: Text(
-                            _filteredFolders[index]['name'],
+                            folder['name'],
                             style: TextStyle(
                               fontSize: 18,
                               color: Colors.black,
@@ -884,39 +969,89 @@ class _CodeStoringPageState extends State<CodeStoringPage>
                         ),
                         Row(
                           children: [
-                            IconButton(
-                              icon: Icon(
-                                Icons.share,
-                                color: Theme.of(context).primaryColor,
-                              ),
-                              onPressed:
-                                  () => _showShareConfirmationDialog(
-                                    _filteredFolders[index]['id'],
-                                    _filteredFolders[index]['name'],
-                                    _filteredFolders[index]['icon'],
+                            isShared
+                              ? Icon(Icons.cloud_done, color: Colors.blue, size: 24)
+                              : IconButton(
+                                  icon: Icon(
+                                    Icons.share,
+                                    color: Theme.of(context).primaryColor,
                                   ),
-                            ),
-                            IconButton(
+                                  onPressed: () => _showShareConfirmationDialog(
+                                    folder['id'],
+                                    folder['name'],
+                                    folder['icon'],
+                                  ),
+                                ),
+                        IconButton(
                               icon: Icon(
                                 Icons.delete,
                                 color: Colors.red,
                                 size: 20,
                               ),
-                              onPressed:
-                                  () => _deleteFolder(
-                                    _filteredFolders[index]['id'],
-                                  ),
+                              onPressed: () => _deleteFolder(folder['id']),
                             ),
+                            if (isShared)
+                        IconButton(
+                                icon: Icon(Icons.remove_circle, color: Colors.orange, size: 22),
+                                tooltip: 'Remove from Community',
+                                onPressed: () async {
+                                  final confirm = await showDialog<bool>(
+                                    context: context,
+                                    builder: (context) => AlertDialog(
+                                      title: Text('Remove from Community'),
+                                      content: Text('Are you sure you want to remove this folder from the community?'),
+                                      actions: [
+                                        TextButton(
+                                          onPressed: () => Navigator.pop(context, false),
+                                          child: Text('Cancel'),
+                                        ),
+                                        TextButton(
+                                          onPressed: () => Navigator.pop(context, true),
+                                          child: Text('Remove', style: TextStyle(color: Colors.red)),
+                                        ),
+                                      ],
+                                    ),
+                                  );
+                                  if (confirm == true) _onStopSharing(folder['id']);
+                                },
+                              ),
                           ],
                         ),
                       ],
                     ),
+                    ),
                   ),
-                ),
-              );
-            },
+                );
+              },
+            ),
           ),
-        ),
+        if (_totalFolderPages > 1)
+            Padding(
+            padding: const EdgeInsets.symmetric(vertical: 8),
+            child: Row(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                if (_currentFolderPage > 1) ...[
+                  _pageButton(0, isNote: false),
+                  if (_currentFolderPage > 2)
+                    Padding(
+                      padding: const EdgeInsets.symmetric(horizontal: 2),
+                      child: Text('...', style: TextStyle(fontWeight: FontWeight.bold)),
+                    ),
+                ],
+                if (_currentFolderPage > 0) _pageButton(_currentFolderPage - 1, isNote: false),
+                _pageButton(_currentFolderPage, isNote: false),
+                if (_currentFolderPage < _totalFolderPages - 1) _pageButton(_currentFolderPage + 1, isNote: false),
+                if (_currentFolderPage < _totalFolderPages - 2) ...[
+                  Padding(
+                    padding: const EdgeInsets.symmetric(horizontal: 2),
+                    child: Text('...', style: TextStyle(fontWeight: FontWeight.bold)),
+                  ),
+                  _pageButton(_totalFolderPages - 1, isNote: false),
+                ],
+              ],
+            ),
+          ),
       ],
     );
   }
@@ -971,8 +1106,8 @@ class _CodeStoringPageState extends State<CodeStoringPage>
         ListTile(
           leading: IconButton(
             icon: Icon(Icons.arrow_back),
-            onPressed: () {
-              setState(() {
+                onPressed: () {
+                  setState(() {
                 _currentFolderId = null;
                 _notes.clear();
                 _editingIndex = null;
@@ -980,12 +1115,12 @@ class _CodeStoringPageState extends State<CodeStoringPage>
                 _titleController.clear();
                 _codeController.clear();
                 _image = null;
-              });
-            },
-          ),
+                  });
+                },
+              ),
           title: Text(currentFolderName),
-        ),
-        if (_isAddingNote)
+            ),
+          if (_isAddingNote)
           Expanded(
             child: SingleChildScrollView(
               padding: EdgeInsets.all(16),
@@ -1017,8 +1152,8 @@ class _CodeStoringPageState extends State<CodeStoringPage>
                             ),
                           ),
                           SizedBox(height: 24),
-                          TextField(
-                            controller: _titleController,
+                  TextField(
+                    controller: _titleController,
                             decoration: InputDecoration(
                               labelText: 'Title',
                               hintText: 'Enter a title for your note',
@@ -1027,8 +1162,8 @@ class _CodeStoringPageState extends State<CodeStoringPage>
                             ),
                           ),
                           SizedBox(height: 16),
-                          TextField(
-                            controller: _codeController,
+                  TextField(
+                    controller: _codeController,
                             decoration: InputDecoration(
                               labelText: 'Code Snippet',
                               hintText:
@@ -1076,72 +1211,72 @@ class _CodeStoringPageState extends State<CodeStoringPage>
                               ),
                             ),
                             SizedBox(height: 12),
-                            _image != null
+                  _image != null
                                 ? Stack(
-                                  children: [
-                                    Container(
-                                      height: 120,
-                                      width: double.infinity,
-                                      decoration: BoxDecoration(
-                                        border: Border.all(
-                                          color: Colors.grey.shade300,
+                                    children: [
+                                      Container(
+                                        height: 120,
+                          width: double.infinity,
+                          decoration: BoxDecoration(
+                                          border: Border.all(
+                                            color: Colors.grey.shade300,
+                          ),
+                                          borderRadius: BorderRadius.circular(8),
                                         ),
-                                        borderRadius: BorderRadius.circular(8),
-                                      ),
-                                      child: ClipRRect(
-                                        borderRadius: BorderRadius.circular(8),
-                                        child: Image.file(
-                                          _image!,
-                                          fit: BoxFit.cover,
-                                        ),
-                                      ),
-                                    ),
-                                    Positioned(
-                                      top: 8,
-                                      right: 8,
-                                      child: IconButton(
-                                        icon: Icon(
-                                          Icons.close,
-                                          color: Colors.white,
-                                        ),
-                                        style: IconButton.styleFrom(
-                                          backgroundColor: Colors.black54,
-                                        ),
-                                        onPressed: _removeImage,
-                                      ),
-                                    ),
-                                  ],
-                                )
-                                : Container(
-                                  height: 120,
-                                  width: double.infinity,
-                                  decoration: BoxDecoration(
-                                    border: Border.all(
-                                      color: Colors.grey.shade300,
-                                    ),
-                                    borderRadius: BorderRadius.circular(8),
-                                  ),
-                                  child: Center(
-                                    child: Column(
-                                      mainAxisAlignment:
-                                          MainAxisAlignment.center,
-                                      children: [
-                                        Icon(
-                                          Icons.image,
-                                          size: 32,
-                                          color: Colors.grey.shade400,
-                                        ),
-                                        SizedBox(height: 8),
-                                        Text(
-                                          "No image selected",
-                                          style: TextStyle(
-                                            color: Colors.grey.shade600,
+                                        child: ClipRRect(
+                                          borderRadius: BorderRadius.circular(8),
+                          child: Image.file(
+                            _image!,
+                                            fit: BoxFit.cover,
                                           ),
                                         ),
-                                      ],
+                                      ),
+                                      Positioned(
+                                        top: 8,
+                                        right: 8,
+                                        child: IconButton(
+                                          icon: Icon(
+                                            Icons.close,
+                                            color: Colors.white,
+                                          ),
+                                          style: IconButton.styleFrom(
+                                            backgroundColor: Colors.black54,
+                                          ),
+                                          onPressed: _removeImage,
+                                        ),
+                                      ),
+                                    ],
+                                  )
+                                : Container(
+                                    height: 120,
+                              width: double.infinity,
+                              decoration: BoxDecoration(
+                                      border: Border.all(
+                                        color: Colors.grey.shade300,
+                                      ),
+                                      borderRadius: BorderRadius.circular(8),
+                                    ),
+                                    child: Center(
+                                      child: Column(
+                                        mainAxisAlignment:
+                                            MainAxisAlignment.center,
+                                        children: [
+                                          Icon(
+                                            Icons.image,
+                                            size: 32,
+                                            color: Colors.grey.shade400,
+                                          ),
+                                          SizedBox(height: 8),
+                                          Text(
+                                            "No image selected",
+                                            style: TextStyle(
+                                              color: Colors.grey.shade600,
+                                            ),
+                                          ),
+                                        ],
+                                      ),
                                     ),
                                   ),
-                                ),
                           ],
                           if (_editingIndex != null &&
                               (_notes[_editingIndex!]['imageUrl'] != null ||
@@ -1163,8 +1298,8 @@ class _CodeStoringPageState extends State<CodeStoringPage>
                                               ? FileImage(_image!)
                                                   as ImageProvider
                                               : NetworkImage(
-                                                _notes[_editingIndex!]['imageUrl'],
-                                              ),
+                                                  _notes[_editingIndex!]['imageUrl'],
+                                                ),
                                       fit: BoxFit.cover,
                                     ),
                                   ),
@@ -1189,13 +1324,13 @@ class _CodeStoringPageState extends State<CodeStoringPage>
                           SizedBox(height: 16),
                           Row(
                             mainAxisAlignment: MainAxisAlignment.end,
-                            children: [
+                    children: [
                               if (_editingIndex == null ||
                                   _notes[_editingIndex!]['imageUrl'] != null ||
                                   _image != null ||
                                   _editingIndex != null)
                                 TextButton.icon(
-                                  onPressed: _pickImage,
+                        onPressed: _pickImage,
                                   icon: Icon(Icons.image),
                                   label: Text(
                                     _editingIndex != null
@@ -1209,7 +1344,7 @@ class _CodeStoringPageState extends State<CodeStoringPage>
                                 ),
                               SizedBox(width: 16),
                               ElevatedButton.icon(
-                                onPressed: _saveNote,
+                        onPressed: _saveNote,
                                 icon: Icon(
                                   _editingIndex != null
                                       ? Icons.edit
@@ -1232,36 +1367,62 @@ class _CodeStoringPageState extends State<CodeStoringPage>
                                     borderRadius: BorderRadius.circular(8),
                                   ),
                                 ),
-                              ),
-                            ],
-                          ),
-                        ],
                       ),
-                    ),
+                    ],
                   ),
                 ],
+                      ),
               ),
             ),
-          ),
-        if (!_isAddingNote)
+        ],
+      ),
+            ),
+          )
+          else
           Expanded(
-            child:
-                _filteredNotes.isEmpty
-                    ? Center(
-                      child: Text(
-                        'No notes in this folder',
-                        style: TextStyle(fontSize: 16, color: Colors.grey[600]),
-                      ),
-                    )
-                    : ListView.builder(
-                      itemCount: _filteredNotes.length,
-                      itemBuilder: (context, index) {
-                        return _buildNoteCard(_filteredNotes[index], index);
-                      },
-                    ),
+            child: Column(
+              children: [
+                Expanded(
+                  child: ListView.builder(
+                    padding: EdgeInsets.only(top: 8),
+                    itemCount: _pagedNotes.length,
+                    itemBuilder: (context, index) {
+                      return _buildNoteCard(_pagedNotes[index], _currentNotePage * _itemsPerPage + index);
+                    },
+                  ),
+                ),
+                if (_totalNotePages > 1)
+                Padding(
+                  padding: const EdgeInsets.symmetric(vertical: 8),
+                  child: Row(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    children: [
+                      if (_currentNotePage > 1) ...[
+                        _pageButton(0, isNote: true),
+                        if (_currentNotePage > 2)
+                          Padding(
+                            padding: const EdgeInsets.symmetric(horizontal: 2),
+                            child: Text('...', style: TextStyle(fontWeight: FontWeight.bold)),
+                          ),
+                      ],
+                      if (_currentNotePage > 0) _pageButton(_currentNotePage - 1, isNote: true),
+                      _pageButton(_currentNotePage, isNote: true),
+                      if (_currentNotePage < _totalNotePages - 1) _pageButton(_currentNotePage + 1, isNote: true),
+                      if (_currentNotePage < _totalNotePages - 2) ...[
+                        Padding(
+                          padding: const EdgeInsets.symmetric(horizontal: 2),
+                          child: Text('...', style: TextStyle(fontWeight: FontWeight.bold)),
+                        ),
+                        _pageButton(_totalNotePages - 1, isNote: true),
+                      ],
+                    ],
+                  ),
+                ),
+              ],
+            ),
           ),
-      ],
-    );
+        ],
+      );
   }
 
   Widget _buildNoteDetails() {
@@ -1345,9 +1506,14 @@ class _CodeStoringPageState extends State<CodeStoringPage>
                     label: Text(
                       (note['tag'] ?? 'dummies').substring(0, 1).toUpperCase() +
                           (note['tag'] ?? 'dummies').substring(1),
-                      style: TextStyle(color: Colors.white),
+                      style: TextStyle(color: _getTagTextColor(note['tag'] ?? 'dummies'), fontSize: 11, fontWeight: FontWeight.w500),
                     ),
                     backgroundColor: _getTagColor(note['tag'] ?? 'dummies'),
+                    padding: EdgeInsets.symmetric(horizontal: 8, vertical: 2),
+                    materialTapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                    visualDensity: VisualDensity.compact,
+                    side: BorderSide.none,
+                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(6)),
                   ),
                 ),
                 if (note['code'] != null && note['code'].isNotEmpty)
@@ -1370,43 +1536,76 @@ class _CodeStoringPageState extends State<CodeStoringPage>
             _selectedNoteIndex = index;
           });
         },
-        child: ListTile(
-          leading:
-              note['imageUrl'] != null
-                  ? Container(
-                    width: 50,
-                    height: 50,
-                    decoration: BoxDecoration(
-                      borderRadius: BorderRadius.circular(8),
-                      image: DecorationImage(
-                        image: NetworkImage(note['imageUrl']),
-                        fit: BoxFit.cover,
-                      ),
-                    ),
-                  )
-                  : null,
-          title: Text(
-            note['title'] ?? '',
-            style: TextStyle(fontWeight: FontWeight.bold),
-          ),
-          subtitle: Chip(
-            label: Text(
-              (note['tag'] ?? 'dummies').substring(0, 1).toUpperCase() +
-                  (note['tag'] ?? 'dummies').substring(1),
-              style: TextStyle(color: Colors.white, fontSize: 12),
-            ),
-            backgroundColor: _getTagColor(note['tag'] ?? 'dummies'),
-          ),
-          trailing: Row(
-            mainAxisSize: MainAxisSize.min,
+        child: Padding(
+          padding: EdgeInsets.all(12),
+          child: Row(
+            crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              IconButton(
-                icon: Icon(Icons.edit),
-                onPressed: () => _editNote(index),
+              if (note['imageUrl'] != null)
+                Container(
+                  width: 50,
+                  height: 50,
+                  margin: EdgeInsets.only(right: 12),
+                  decoration: BoxDecoration(
+                    borderRadius: BorderRadius.circular(8),
+                    image: DecorationImage(
+                      image: NetworkImage(note['imageUrl']),
+                      fit: BoxFit.cover,
+                    ),
+                  ),
+                ),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      note['title'] ?? '',
+                      style: TextStyle(
+                        fontSize: 15,
+                        fontWeight: FontWeight.w800,
+                        color: Colors.black87,
+                      ),
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                    ),
+                    SizedBox(height: 4),
+                    Chip(
+                      label: Text(
+                        (note['tag'] ?? 'dummies').substring(0, 1).toUpperCase() +
+                            (note['tag'] ?? 'dummies').substring(1),
+                        style: TextStyle(
+                          color: _getTagTextColor(note['tag'] ?? 'dummies'),
+                          fontSize: 11,
+                          fontWeight: FontWeight.w500,
+                        ),
+                      ),
+                      backgroundColor: _getTagColor(note['tag'] ?? 'dummies'),
+                      padding: EdgeInsets.symmetric(horizontal: 8, vertical: 2),
+                      materialTapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                      visualDensity: VisualDensity.compact,
+                      side: BorderSide.none,
+                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(6)),
+                    ),
+                  ],
+                ),
               ),
-              IconButton(
-                icon: Icon(Icons.delete),
-                onPressed: () => _deleteNote(index),
+              Row(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  IconButton(
+                    icon: Icon(Icons.edit, size: 20),
+                    padding: EdgeInsets.zero,
+                    constraints: BoxConstraints(),
+                    onPressed: () => _editNote(index),
+                  ),
+                  SizedBox(width: 8),
+                  IconButton(
+                    icon: Icon(Icons.delete, size: 20),
+                    padding: EdgeInsets.zero,
+                    constraints: BoxConstraints(),
+                    onPressed: () => _deleteNote(index),
+                  ),
+                ],
               ),
             ],
           ),
@@ -1418,15 +1617,30 @@ class _CodeStoringPageState extends State<CodeStoringPage>
   Color _getTagColor(String tag) {
     switch (tag) {
       case 'dummies':
-        return Colors.green;
+        return Color(0xFFE8F5E9);
       case 'basic':
-        return Colors.blue;
+        return Color(0xFFE3F2FD);
       case 'advanced':
-        return Colors.orange;
+        return Color(0xFFFFF3E0);
       case 'externalLibs':
-        return Colors.purple;
+        return Color(0xFFF3E5F5);
       default:
-        return Colors.grey;
+        return Colors.grey[200]!;
+    }
+  }
+
+  Color _getTagTextColor(String tag) {
+    switch (tag) {
+      case 'dummies':
+        return Color(0xFF256029);
+      case 'basic':
+        return Color(0xFF0D47A1);
+      case 'advanced':
+        return Color(0xFF6D4C00);
+      case 'externalLibs':
+        return Color(0xFF4A148C);
+      default:
+        return Colors.black87;
     }
   }
 
@@ -1732,5 +1946,43 @@ class _CodeStoringPageState extends State<CodeStoringPage>
     if (iconPath.contains('html')) return 'HTML';
     if (iconPath.contains('flutter')) return 'Flutter';
     return 'Unknown';
+  }
+
+  Widget _pageButton(int i, {required bool isNote}) {
+    final isCurrent = isNote ? i == _currentNotePage : i == _currentFolderPage;
+    return GestureDetector(
+      onTap: () => setState(() {
+        if (isNote) {
+          _currentNotePage = i;
+        } else {
+          _currentFolderPage = i;
+        }
+      }),
+      child: Container(
+        margin: EdgeInsets.symmetric(horizontal: 2),
+        padding: EdgeInsets.symmetric(vertical: 4, horizontal: 10),
+        decoration: BoxDecoration(
+          color: isCurrent ? Colors.blue : Colors.grey[300],
+          borderRadius: BorderRadius.circular(6),
+        ),
+        child: Text(
+          '${i + 1}',
+          style: TextStyle(
+            color: isCurrent ? Colors.white : Colors.black,
+            fontWeight: FontWeight.bold,
+          ),
+        ),
+      ),
+    );
+  }
+
+  // Reset _currentNotePage if out of range after search or note changes
+  void _ensureNotePageInRange() {
+    final totalPages = _totalNotePages;
+    if (_currentNotePage >= totalPages && totalPages > 0) {
+      setState(() {
+        _currentNotePage = 0;
+      });
+    }
   }
 }
