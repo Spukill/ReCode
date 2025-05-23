@@ -319,6 +319,9 @@ class _CodeStoringPageState extends State<CodeStoringPage>
               .where('folderId', isEqualTo: folderId)
               .get();
 
+      // Get the language from the folder's icon
+      String language = _getLanguageFromIcon(icon);
+
       // Create the shared folder
       final sharedFolderRef = await _firestore.collection('sharedFolders').add({
         'name': folderName,
@@ -329,6 +332,7 @@ class _CodeStoringPageState extends State<CodeStoringPage>
         'likes': 0,
         'likedBy': [],
         'originalFolderId': folderId,
+        'language': language,
       });
 
       // Copy all notes to sharedNotes collection
@@ -343,6 +347,7 @@ class _CodeStoringPageState extends State<CodeStoringPage>
           'createdAt': doc['createdAt'] ?? FieldValue.serverTimestamp(),
           'ownerId': user.uid,
           'ownerName': user.email ?? 'Anonymous',
+          'language': language,
         });
       }
 

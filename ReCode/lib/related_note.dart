@@ -186,79 +186,86 @@ class _RelatedNotesPageState extends State<RelatedNotesPage> {
     String username2 = comparedNote['ownerName']?.toString() ?? '';
     if (username2.contains('@')) username2 = username2.split('@')[0];
     if (username2.length > 14) username2 = username2.substring(0, 11) + '...';
-    return Row(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Expanded(
-          child: Padding(
-            padding: EdgeInsets.all(8),
-            child: Card(
-              elevation: 2,
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  ListTile(
-                    title: Text(originalNote['title'], style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
-                    subtitle: Text('By $username1'),
-                  ),
-                  if (originalNote['imageUrl'] != null)
-                    Container(
-                      width: double.infinity,
-                      height: 120,
-                      margin: EdgeInsets.only(bottom: 8),
-                      decoration: BoxDecoration(
-                        borderRadius: BorderRadius.circular(8),
-                        image: DecorationImage(
-                          image: NetworkImage(originalNote['imageUrl']),
-                          fit: BoxFit.cover,
-                        ),
+    return SingleChildScrollView(
+      child: Column(
+        children: [
+          Row(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Expanded(
+                child: Card(
+                  elevation: 2,
+                  margin: EdgeInsets.zero,
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      ListTile(
+                        title: Text(originalNote['title'], style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
+                        subtitle: Text('By $username1'),
+                        contentPadding: EdgeInsets.symmetric(horizontal: 16, vertical: 8),
                       ),
-                    ),
-                  Padding(
-                    padding: EdgeInsets.all(8),
-                    child: _buildCodeBlock(originalNote['code'] ?? ''),
-                  ),
-                ],
-              ),
-            ),
-          ),
-        ),
-        VerticalDivider(width: 1, thickness: 1, color: Colors.grey[300]),
-        Expanded(
-          child: Padding(
-            padding: EdgeInsets.all(8),
-            child: Card(
-              elevation: 2,
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  ListTile(
-                    title: Text(comparedNote['title'], style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
-                    subtitle: Text('By $username2'),
-                  ),
-                  if (comparedNote['imageUrl'] != null)
-                    Container(
-                      width: double.infinity,
-                      height: 120,
-                      margin: EdgeInsets.only(bottom: 8),
-                      decoration: BoxDecoration(
-                        borderRadius: BorderRadius.circular(8),
-                        image: DecorationImage(
-                          image: NetworkImage(comparedNote['imageUrl']),
-                          fit: BoxFit.cover,
+                      if (originalNote['imageUrl'] != null)
+                        Container(
+                          width: double.infinity,
+                          height: 120,
+                          margin: EdgeInsets.only(bottom: 8),
+                          decoration: BoxDecoration(
+                            borderRadius: BorderRadius.circular(8),
+                            image: DecorationImage(
+                              image: NetworkImage(originalNote['imageUrl']),
+                              fit: BoxFit.cover,
+                            ),
+                          ),
                         ),
+                      Padding(
+                        padding: EdgeInsets.all(16),
+                        child: _buildCodeBlock(originalNote['code'] ?? ''),
                       ),
-                    ),
-                  Padding(
-                    padding: EdgeInsets.all(8),
-                    child: _buildCodeBlock(comparedNote['code'] ?? ''),
+                    ],
                   ),
-                ],
+                ),
               ),
-            ),
+              Container(
+                width: 1,
+                color: Colors.grey[300],
+              ),
+              Expanded(
+                child: Card(
+                  elevation: 2,
+                  margin: EdgeInsets.zero,
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      ListTile(
+                        title: Text(comparedNote['title'], style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
+                        subtitle: Text('By $username2'),
+                        contentPadding: EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                      ),
+                      if (comparedNote['imageUrl'] != null)
+                        Container(
+                          width: double.infinity,
+                          height: 120,
+                          margin: EdgeInsets.only(bottom: 8),
+                          decoration: BoxDecoration(
+                            borderRadius: BorderRadius.circular(8),
+                            image: DecorationImage(
+                              image: NetworkImage(comparedNote['imageUrl']),
+                              fit: BoxFit.cover,
+                            ),
+                          ),
+                        ),
+                      Padding(
+                        padding: EdgeInsets.all(16),
+                        child: _buildCodeBlock(comparedNote['code'] ?? ''),
+                      ),
+                    ],
+                  ),
+                ),
+              ),
+            ],
           ),
-        ),
-      ],
+        ],
+      ),
     );
   }
 
