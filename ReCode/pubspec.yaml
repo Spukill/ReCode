@@ -28,11 +28,11 @@ environment:
 # the latest version available on pub.dev. To see which dependencies have newer
 # versions available, run `flutter pub outdated`.
 dependencies:
-  firebase_core: ^3.13.0
-  firebase_auth: ^5.5.2
-  cloud_firestore: ^5.6.6
-  firebase_storage: ^12.4.5
-  firebase_auth_web: ^5.14.2  
+  firebase_core: ^3.13.1
+  firebase_auth: ^5.5.4
+  cloud_firestore: ^5.6.8
+  firebase_storage: ^12.4.6
+  firebase_auth_web: ^5.8.12
   google_sign_in: ^6.3.0
   flutter:
     sdk: flutter
@@ -57,6 +57,11 @@ dev_dependencies:
   # rules and activating additional ones.
   flutter_lints: ^5.0.0
   fake_cloud_firestore: ^3.1.0
+  mockito: ^5.4.4
+  build_runner: ^2.4.8
+  firebase_auth_mocks: ^0.14.1
+  firebase_storage_mocks: ^0.7.0
+  google_sign_in_mocks: ^0.3.0
 
 # For information on the generic Dart part of this file, see the
 # following page: https://dart.dev/tools/pub/pubspec
