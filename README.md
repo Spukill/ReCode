@@ -183,9 +183,18 @@ Screenshot of our backlog at the beggining of sprint 2:
 
 
 ### Sprint 3
+Screenshot of our backlog at the beggining of sprint 3:
+<img src="/images/BacklogSprint3Beggining.png">
 
+**Sprint Review:**
+In the 3rd sprint we got every feature we planned accepted.
+Even though we had to do a lot of features this sprint to finish the app, we managed to complete it.
 
-### Sprint 4
+**Sprint Retrospective:**
+It was a decent sprint, we got a lot of features done and overall a good experience.
+
+Screenshot of our backlog at the beggining of sprint 3:
+<img src="/images/BacklogSprint3End.png">
 
 
 ### Final Release
