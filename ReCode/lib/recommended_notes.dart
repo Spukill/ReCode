@@ -118,15 +118,30 @@ class _RecommendedNotesPageState extends State<RecommendedNotesPage> {
   Color _getTagColor(String tag) {
     switch (tag) {
       case 'dummies':
-        return Colors.green;
+        return Color(0xFFE8F5E9);
       case 'basic':
-        return Colors.blue;
+        return Color(0xFFE3F2FD);
       case 'advanced':
-        return Colors.orange;
+        return Color(0xFFFFF3E0);
       case 'externalLibs':
-        return Colors.purple;
+        return Color(0xFFF3E5F5);
       default:
-        return Colors.grey;
+        return Colors.grey[200]!;
+    }
+  }
+
+  Color _getTagTextColor(String tag) {
+    switch (tag) {
+      case 'dummies':
+        return Color(0xFF256029);
+      case 'basic':
+        return Color(0xFF0D47A1);
+      case 'advanced':
+        return Color(0xFF6D4C00);
+      case 'externalLibs':
+        return Color(0xFF4A148C);
+      default:
+        return Colors.black87;
     }
   }
 
@@ -144,6 +159,7 @@ class _RecommendedNotesPageState extends State<RecommendedNotesPage> {
                 'All',
                 style: TextStyle(
                   color: _selectedTag == null ? Colors.white : Colors.black87,
+                  fontSize: 11,
                 ),
               ),
               selected: _selectedTag == null,
@@ -155,6 +171,15 @@ class _RecommendedNotesPageState extends State<RecommendedNotesPage> {
               },
               backgroundColor: Colors.grey[200],
               selectedColor: Theme.of(context).primaryColor,
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(6),
+                side: BorderSide(
+                  color: _selectedTag == null ? Colors.grey[200]! : Theme.of(context).primaryColor,
+                  width: 1,
+                ),
+              ),
+              visualDensity: VisualDensity.compact,
+              padding: EdgeInsets.symmetric(horizontal: 8, vertical: 2),
             ),
           ),
           ..._availableTags.map((tag) {
@@ -164,7 +189,8 @@ class _RecommendedNotesPageState extends State<RecommendedNotesPage> {
                 label: Text(
                   tag.substring(0, 1).toUpperCase() + tag.substring(1),
                   style: TextStyle(
-                    color: _selectedTag == tag ? Colors.white : Colors.black87,
+                    color: _selectedTag == tag ? Colors.white : _getTagTextColor(tag),
+                    fontSize: 11,
                   ),
                 ),
                 selected: _selectedTag == tag,
@@ -174,8 +200,17 @@ class _RecommendedNotesPageState extends State<RecommendedNotesPage> {
                     _filterNotes();
                   });
                 },
-                backgroundColor: Colors.grey[200],
+                backgroundColor: _selectedTag == tag ? _getTagColor(tag) : Colors.grey[200],
                 selectedColor: _getTagColor(tag),
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(6),
+                  side: BorderSide(
+                    color: _selectedTag == tag ? _getTagColor(tag) : Colors.grey[200]!,
+                    width: 1,
+                  ),
+                ),
+                visualDensity: VisualDensity.compact,
+                padding: EdgeInsets.symmetric(horizontal: 8, vertical: 2),
               ),
             );
           }).toList(),
@@ -223,6 +258,7 @@ class _RecommendedNotesPageState extends State<RecommendedNotesPage> {
       itemCount: _filteredNotes.length,
       itemBuilder: (context, index) {
         final note = _filteredNotes[index];
+        final tag = note['tag'].toString();
         return Card(
           elevation: 2,
           margin: EdgeInsets.only(bottom: 16),
@@ -256,11 +292,23 @@ class _RecommendedNotesPageState extends State<RecommendedNotesPage> {
                   SizedBox(height: 4),
                   Chip(
                     label: Text(
-                      note['tag'].toString().substring(0, 1).toUpperCase() +
-                          note['tag'].toString().substring(1),
-                      style: TextStyle(color: Colors.white, fontSize: 12),
+                      tag.substring(0, 1).toUpperCase() + tag.substring(1),
+                      style: TextStyle(
+                        color: _getTagTextColor(tag),
+                        fontSize: 11,
+                      ),
                     ),
-                    backgroundColor: _getTagColor(note['tag'].toString()),
+                    backgroundColor: _getTagColor(tag),
+                    padding: EdgeInsets.symmetric(horizontal: 8, vertical: 0),
+                    materialTapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(6),
+                      side: BorderSide(
+                        color: _getTagColor(tag),
+                        width: 1,
+                      ),
+                    ),
+                    visualDensity: VisualDensity.compact,
                   ),
                 ],
               ),
@@ -351,7 +399,7 @@ class _RecommendedNotesPageState extends State<RecommendedNotesPage> {
                 decoration: BoxDecoration(
                   color: Colors.grey[100],
                   borderRadius: BorderRadius.circular(8),
-                  border: Border.all(color: Colors.grey[300]!),
+                  border: Border.all(color: Colors.grey[100]!),
                 ),
                 child: HighlightView(
                   block.trim(),

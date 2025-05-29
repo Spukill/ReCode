@@ -82,16 +82,6 @@ class _CodeStoringPageState extends State<CodeStoringPage>
     'externalLibs',
   ];
 
-  final List<String> _availableConcepts = [
-    'printing',
-    'variables',
-    'loops',
-    'conditionals',
-    'functions',
-    'arrays',
-    'objects',
-    // Add more concepts as needed
-  ];
 
   final FirebaseFirestore _firestore = FirebaseFirestore.instance;
   final FirebaseAuth _auth = FirebaseAuth.instance;
