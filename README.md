@@ -198,3 +198,5 @@ Screenshot of our backlog at the beggining of sprint 3:
 
 
 ### Final Release
+- Addition of tests for all the app sections main features (creating notes, commenting, etc) and for navigating the app, authentication tests are failing due to pubspec includes;
+- Fixing tag styling related problems.
