@@ -1,4 +1,29 @@
-ReCode Development Report
+# ReCode
+
+**ReCode** is a mobile application built with **Dart**, designed to help students and programmers efficiently recall or relearn programming languages they have used in the past.
+
+---
+
+### Key Features
+* **Snippet Management:** Store and organize code with image-supported notes.
+* **Language Comparison:** View syntax differences between languages side-by-side.
+* **Transition Guides:** Get tailored tips when switching from one language to another.
+* **Community Hub:** Share snippets and collaborate through a Q&A section.
+
+<img src="/images/App/Login.jpg">
+<img src="/images/App/NotesPage.jpg">
+<img src="/images/App/InsideNote.jpg">
+<img src="/images/App/CommunityPage.jpg">
+<img src="/images/App/QuestionsPage.jpg">
+<img src="/images/App/InsideQuestion.jpg">
+
+---
+
+### How to run
+Check the **releases** to the right of the screen to download the app .apk
+
+---
+# Development Report
 
 
 Welcome to the documentation pages of ReCode!
