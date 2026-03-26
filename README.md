@@ -10,12 +10,21 @@
 * **Transition Guides:** Get tailored tips when switching from one language to another.
 * **Community Hub:** Share snippets and collaborate through a Q&A section.
 
-<img src="/images/App/Login.jpg">
-<img src="/images/App/NotesPage.jpg">
-<img src="/images/App/InsideNote.jpg">
-<img src="/images/App/CommunityPage.jpg">
-<img src="/images/App/QuestionsPage.jpg">
-<img src="/images/App/InsideQuestion.jpg">
+---
+
+### App Screenshots
+
+<p align="center">
+  <img src="/images/App/Login.jpg" width="250" alt="Login Page">
+  <img src="/images/App/NotesPage.jpg" width="250" alt="Notes Page">
+  <img src="/images/App/InsideNote.jpg" width="250" alt="Note Content">
+</p>
+
+<p align="center">
+  <img src="/images/App/CommunityPage.jpg" width="250" alt="Community Hub">
+  <img src="/images/App/QuestionsPage.jpg" width="250" alt="Q&A Section">
+  <img src="/images/App/InsideQuestion.jpg" width="250" alt="Question Detail">
+</p>
 
 ---
 
